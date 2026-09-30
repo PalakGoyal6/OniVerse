@@ -703,11 +703,11 @@ export const AiTestingLabPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <div className="text-[10px] uppercase font-bold text-slate-400">
-                            Selective Prediction
+                            Lot Verification Status
                           </div>
                           <div className="text-xs font-bold text-emerald-400">
-                            {analysisResult.summary.auto_graded_count} of{' '}
-                            {analysisResult.summary.total_onions} Auto-Graded
+                            {analysisResult.summary.summary_status_text ||
+                              `${analysisResult.summary.auto_graded_count} of ${analysisResult.summary.total_onions} auto-graded • ${analysisResult.summary.needs_check_count} need your check`}
                           </div>
                         </div>
 
@@ -763,7 +763,7 @@ export const AiTestingLabPage: React.FC = () => {
                     {/* Grade Split Pills */}
                     <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800 text-center">
                       <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                        <div className="text-[11px] font-bold text-emerald-400">Grade A</div>
+                        <div className="text-[11px] font-bold text-emerald-400">Grade A (Confirmed)</div>
                         <div className="text-2xl font-black text-white mt-0.5">
                           {analysisResult.summary.grade_a_pct}%
                         </div>
@@ -785,6 +785,21 @@ export const AiTestingLabPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Status banner if some bulbs require officer review */}
+                    {analysisResult.summary.needs_check_count > 0 && (
+                      <div className="mt-3 p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>
+                            <strong>{analysisResult.summary.needs_check_count} bulb(s) pending check:</strong> Provisional grades shown below until officer confirmation.
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono bg-amber-500/20 px-2 py-0.5 rounded text-amber-300">
+                          {analysisResult.summary.auto_graded_count} Auto-Graded
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Storage Suitability Card */}
@@ -820,6 +835,7 @@ export const AiTestingLabPage: React.FC = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-80 overflow-y-auto pr-1">
                       {analysisResult.onions.map((o: any) => {
                         const isDefect = o.class !== 'healthy' && o.class !== 'Healthy';
+                        const isPending = o.status === 'NEEDS_MANUAL_CHECK';
                         return (
                           <button
                             key={o.onion_id}
@@ -827,6 +843,8 @@ export const AiTestingLabPage: React.FC = () => {
                             className={`p-3 rounded-xl border text-left transition ${
                               selectedOnion?.onion_id === o.onion_id
                                 ? 'ring-2 ring-emerald-600 bg-emerald-50/40'
+                                : isPending
+                                ? 'bg-amber-50/30 hover:bg-white border-amber-200'
                                 : 'bg-slate-50 hover:bg-white border-slate-200'
                             }`}
                           >
@@ -834,23 +852,36 @@ export const AiTestingLabPage: React.FC = () => {
                               <span className="text-[11px] font-mono font-bold text-slate-700">
                                 {o.onion_id}
                               </span>
-                              <span
-                                className={`w-2 h-2 rounded-full ${
-                                  o.grade === 'GRADE_A'
-                                    ? 'bg-emerald-500'
-                                    : o.grade === 'URS'
-                                    ? 'bg-amber-500'
-                                    : 'bg-rose-500'
-                                }`}
-                              />
+                              <div className="flex items-center gap-1.5">
+                                {isPending && (
+                                  <span className="text-[8px] font-bold uppercase bg-amber-100 text-amber-800 px-1 py-0.2 rounded">
+                                    Pending
+                                  </span>
+                                )}
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    o.grade === 'GRADE_A'
+                                      ? 'bg-emerald-500'
+                                      : o.grade === 'URS'
+                                      ? 'bg-amber-500'
+                                      : o.grade === 'PENDING_MEASUREMENT'
+                                      ? 'bg-slate-400'
+                                      : 'bg-rose-500'
+                                  }`}
+                                />
+                              </div>
                             </div>
 
                             <div className="mt-1.5 flex items-baseline justify-between">
                               <span className="text-sm font-black text-slate-900">
-                                {o.diameter_mm} mm
+                                {o.diameter_mm !== null && o.diameter_mm !== undefined
+                                  ? `${o.diameter_mm} mm`
+                                  : 'Size not measured'}
                               </span>
                               <span className="text-[10px] font-bold text-slate-500">
-                                {o.estimated_weight_g} g
+                                {o.estimated_weight_g !== null && o.estimated_weight_g !== undefined
+                                  ? `${o.estimated_weight_g} g`
+                                  : '—'}
                               </span>
                             </div>
 
@@ -894,17 +925,29 @@ export const AiTestingLabPage: React.FC = () => {
                   <div className="grid grid-cols-3 gap-2 text-xs text-center">
                     <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
                       <div className="text-[10px] text-slate-500">Diameter</div>
-                      <div className="font-bold text-slate-900">{selectedOnion.diameter_mm} mm</div>
+                      <div className="font-bold text-slate-900">
+                        {selectedOnion.diameter_mm !== null && selectedOnion.diameter_mm !== undefined
+                          ? `${selectedOnion.diameter_mm} mm`
+                          : 'Size not measured'}
+                      </div>
                     </div>
                     <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
                       <div className="text-[10px] text-slate-500">Est. Weight</div>
                       <div className="font-bold text-slate-900">
-                        {selectedOnion.estimated_weight_g} g
+                        {selectedOnion.estimated_weight_g !== null && selectedOnion.estimated_weight_g !== undefined
+                          ? `${selectedOnion.estimated_weight_g} g`
+                          : '—'}
                       </div>
                     </div>
                     <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
                       <div className="text-[10px] text-slate-500">Routing Status</div>
-                      <div className="font-bold text-emerald-700">{selectedOnion.status}</div>
+                      <div
+                        className={`font-bold ${
+                          selectedOnion.status === 'AUTO' ? 'text-emerald-700' : 'text-amber-700'
+                        }`}
+                      >
+                        {selectedOnion.status === 'AUTO' ? 'AUTO-GRADED' : 'PENDING CHECK'}
+                      </div>
                     </div>
                   </div>
 

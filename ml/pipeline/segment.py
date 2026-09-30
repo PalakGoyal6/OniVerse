@@ -48,8 +48,9 @@ class SegmentResult:
 
 
 class YOLOSegmentor:
-    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.28):
+    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.25):
         self.conf_threshold = conf_threshold
+        self.iou_threshold = 0.60
         self.model = None
 
         if model_path is None:
@@ -74,7 +75,7 @@ class YOLOSegmentor:
                 print(f"[YOLOSegmentor] Note: Could not load model from '{model_path}': {e}.")
 
     def infer(self, image: np.ndarray) -> List[SegmentResult]:
-        """Run YOLO inference on image array with confidence & geometry filtering."""
+        """Run YOLO inference on image array with calibrated confidence & NMS IoU filtering."""
         if image is None or image.size == 0:
             return []
 
@@ -82,8 +83,8 @@ class YOLOSegmentor:
         total_img_area = float(img_h * img_w)
 
         if self.model is not None:
-            # conf=0.28 eliminates low-confidence face/glasses noise (18%) while retaining real onions
-            results = self.model(image, conf=self.conf_threshold, iou=0.55, verbose=False)
+            # conf=0.25 and iou=0.60: captures basket clusters while cleanly rejecting non-onion noise
+            results = self.model(image, conf=self.conf_threshold, iou=self.iou_threshold, verbose=False)
             output: List[SegmentResult] = []
 
             if len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:

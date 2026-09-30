@@ -178,31 +178,40 @@ async def analyze_onion_images(
     grade_a_pct = round(pct_by_count.get("GRADE_A", 0.0), 1)
     urs_pct = round(pct_by_count.get("URS", 0.0), 1)
     rejected_pct = round(pct_by_count.get("REJECTED", 0.0), 1)
-    lot_verdict = lot_summary.get("lot_verdict", "GRADE_A" if grade_a_pct >= 70 else ("URS" if grade_a_pct >= 50 else "REJECTED"))
-    avg_diameter = round(lot_summary.get("average_diameter_mm", 0.0), 1)
+    auto_count = lot_summary.get("auto_graded_count", 0)
+    needs_check_count = lot_summary.get("needs_check_count", total_count - auto_count)
+    summary_status = lot_summary.get("summary_status_text", f"{auto_count} of {total_count} auto-graded • {needs_check_count} need your check")
+
+    lot_verdict = lot_summary.get("lot_verdict", "GRADE_A" if grade_a_pct >= 70 else ("URS" if grade_a_pct >= 50 else ("REJECTED" if rejected_pct > 15 else "NEEDS_MANUAL_CHECK")))
+    avg_dia_raw = lot_summary.get("average_diameter_mm")
+    avg_diameter = round(float(avg_dia_raw), 1) if avg_dia_raw is not None else None
 
     formatted_onions = []
-    auto_count = lot_summary.get("auto_graded_count", 0)
-
     for idx, o in enumerate(raw_onions):
         conf = float(o.get("confidence", 0.90))
         st = o.get("status", "AUTO" if conf >= 0.50 else "NEEDS_MANUAL_CHECK")
         cls_name = o.get("class_name", "Healthy")
-        dia = round(float(o.get("diameter_mm", 50.0)), 1)
-        wt = round(float(o.get("weight_g", 75.0)), 1)
+        dia_raw = o.get("diameter_mm")
+        dia = round(float(dia_raw), 1) if dia_raw is not None else None
+        wt_raw = o.get("weight_g")
+        wt = round(float(wt_raw), 1) if wt_raw is not None else None
         grade = o.get("grade", "GRADE_A")
         reasons_list = o.get("reasons", [])
-        reason_str = "; ".join(reasons_list) if isinstance(reasons_list, list) and len(reasons_list) > 0 else f"Size: {dia}mm. Class: {cls_name}."
+        
+        size_label = f"Size: {dia}mm" if dia is not None else "Size: Not measured (No ArUco marker)"
+        reason_str = "; ".join(reasons_list) if isinstance(reasons_list, list) and len(reasons_list) > 0 else f"{size_label}. Class: {cls_name}."
 
         formatted_onions.append({
             "onion_id": f"ONION-{idx + 1:03d}",
             "class": cls_name,
             "confidence": conf,
             "status": st,
+            "is_auto": o.get("is_auto", st == "AUTO"),
             "diameter_mm": dia,
             "estimated_weight_g": wt,
             "grade": grade,
             "reason": reason_str,
+            "marker_detected": o.get("marker_detected", dia is not None),
         })
 
     # Storage Risk calculation
@@ -233,7 +242,9 @@ async def analyze_onion_images(
             "urs_pct": urs_pct,
             "rejected_pct": rejected_pct,
             "auto_graded_count": auto_count,
-            "needs_check_count": total_count - auto_count,
+            "needs_check_count": needs_check_count,
+            "summary_status_text": summary_status,
+            "provisional_percentages": lot_summary.get("provisional_percentages", {}),
             "sample_weight_kg": sample_weight_kg or calculated_sample_weight,
             "total_lot_weight_kg": total_lot_weight_kg or 1800.0,
             "average_diameter_mm": avg_diameter,

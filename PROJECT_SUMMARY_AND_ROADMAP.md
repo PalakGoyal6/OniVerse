@@ -16,11 +16,21 @@ The **Agri-Grade AI** platform provides an autonomous, trust-first quality evalu
 
 ### A. Machine Learning & Computer Vision Pipeline (`ml/`, `best.pt`)
 - [x] **YOLO11 Model Integration**: Integrated trained 5-class detection model `best.pt` (`healthy`, `mechanical_damage`, `rotten`, `sprouting`, `mould`) with automatic fallback discovery across root and `ml/weights/`.
+- [x] **NMS IoU & Confidence Calibration**:
+  - **Old NMS IoU**: `0.55` / `0.50` (caused suppression of adjacent onions in dense basket clusters).
+  - **Evaluated NMS IoU Grid**: Tested `0.5, 0.6, 0.7, 0.8` on basket and tray photos.
+  - **New NMS IoU**: `0.60` (detects real adjacent clustered onions without creating duplicate bounding boxes).
+  - **Detection Confidence Threshold**: Calibrated to `0.25` to capture real sound/defective onions down to 25% while cleanly rejecting non-onion/face backgrounds.
+- [x] **Honest Marker-Less Handling**:
+  - When no ArUco marker is detected, size is marked as `"Size not measured"`, avoiding synthetic/fabricated millimeter measurements or false Grade A claims.
+- [x] **Selective Prediction & Confirmed Lot Percentages**:
+  - Separate tracking of physical grade and routing status (`AUTO` vs `NEEDS_MANUAL_CHECK`).
+  - Final lot percentages strictly count `AUTO` + officer-confirmed bulbs, displaying `"X of Y auto-graded • Z need your check"` with provisional tags for pending bulbs.
 - [x] **Physical Scale Homography**: ArUco marker homography converting pixel dimensions to real-world millimeters with certified **1.42 mm MAE**.
-- [x] **Selective Prediction & Confidence Routing**: Implemented per-class confidence thresholds in `config/confidence_thresholds.json`. Ambiguous bulbs (delta $\le 0.10$) are automatically routed to `NEEDS_MANUAL_CHECK`.
 - [x] **Two-View Hungarian Defect Fusion**: Fuses top and underside views to detect hidden basal rot and sprouting.
 - [x] **3D Ellipsoidal Weight Estimation**: Formula $k \cdot \frac{\pi}{6} \cdot L \cdot W^2$ with proportional sample weight scaling.
 - [x] **Automated Golden Parity Tests**: Golden tests running in `ml/golden_tests/run_parity_tests.py` passing 100%.
+- [ ] **Long-Term Dataset Retraining Roadmap**: Add more real-world crowded basket and mandi godown tray images to training data to elevate cluster detection confidences from 25–35% to 80%+.
 
 ### B. FastAPI Backend & Cryptographic Ledger (`backend/`)
 - [x] **Ed25519 Asymmetric Digital Signing**: Canonical SHA-256 hash calculation and digital signature creation over report payloads.
