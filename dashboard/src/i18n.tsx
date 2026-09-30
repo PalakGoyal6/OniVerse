@@ -23,9 +23,9 @@ export const translations: Translations = {
     mr: 'ग्राहक व्यवहार विभाग • एआय गुणवत्ता विश्लेषण',
   },
   systemLive: {
-    en: 'SYSTEM LIVE • 6 MANDIS SYNCED',
-    hi: 'सिस्टम लाइव • 6 मंडियां सिंक',
-    mr: 'प्रणाली थेट सुरू • 6 बाजार समित्या जोडल्या',
+    en: 'DEMO DATA • 6 SIMULATED MANDIS',
+    hi: 'डेमो डेटा • 6 सिमुलेटेड मंडियां',
+    mr: 'डेमो डेटा • ६ प्रात्यक्षिक बाजार समित्या',
   },
   demoModeActive: {
     en: 'DEMO MODE ACTIVE',

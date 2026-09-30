@@ -65,7 +65,7 @@ export const OnionLogo: React.FC<OnionLogoProps> = ({ size = 'md', showSubtext =
         </div>
         {showSubtext && (
           <p className="text-[10px] text-slate-500 font-medium tracking-tight">
-            Department of Consumer Affairs • AI Quality Intelligence
+            Built for DoCA • SIH PS 26031
           </p>
         )}
       </div>

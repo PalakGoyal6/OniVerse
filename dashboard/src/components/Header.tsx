@@ -90,13 +90,13 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Supervisor Profile */}
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 font-black text-xs">
-            APMC
+          <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-700 font-black text-[10px]">
+            DEMO
           </div>
           <div className="text-left hidden sm:block">
-            <div className="text-xs font-bold text-slate-900">Dr. Suresh Shinde</div>
+            <div className="text-xs font-bold text-slate-900">Demo Supervisor</div>
             <div className="text-[10px] text-slate-500 font-medium">
-              {language === 'hi' ? 'मुख्य पर्यवेक्षक • नासिक' : language === 'mr' ? 'मुख्य पर्यवेक्षक • नाशिक' : 'Chief Supervisor • Nashik'}
+              SIH PS 26031 • Evaluation
             </div>
           </div>
         </div>

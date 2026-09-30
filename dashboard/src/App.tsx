@@ -31,7 +31,7 @@ const DashboardContent: React.FC = () => {
   const [viewMode, setViewMode] = useState<'landing' | 'dashboard' | 'verify'>('landing');
   const [activeTab, setActiveTab] = useState('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
+  const [demoMode, setDemoMode] = useState(true);
 
   const [overview, setOverview] = useState<StatsOverview>({
     total_lots_today: 48,

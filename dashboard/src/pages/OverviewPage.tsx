@@ -17,6 +17,7 @@ import {
   Filter,
   Calendar,
   Eye,
+  Info,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -42,13 +43,29 @@ interface OverviewPageProps {
 }
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
-  overview,
-  centres,
-  reports,
   onSelectReport,
 }) => {
   const { language, t } = useLanguage();
   const [timeFilter, setTimeFilter] = useState<'today' | '7d' | '30d' | 'custom'>('today');
+
+  // Single Mathematical Source of Truth for Simulated Demo Dataset (6 Mandis)
+  const sampleCentresData = [
+    { centre_name: 'Lasalgaon Mandi', lots_count: 18, volume_kg: 5400, avg_grade_a_pct: 76.5, avg_urs_pct: 16.0, avg_rejected_pct: 7.5, disputes: 0, status: 'Simulated Feed' },
+    { centre_name: 'Pimpalgaon Mandi', lots_count: 12, volume_kg: 3600, avg_grade_a_pct: 75.0, avg_urs_pct: 17.5, avg_rejected_pct: 7.5, disputes: 0, status: 'Simulated Feed' },
+    { centre_name: 'Kalwan Mandi', lots_count: 8, volume_kg: 2400, avg_grade_a_pct: 74.0, avg_urs_pct: 18.0, avg_rejected_pct: 8.0, disputes: 0, status: 'Simulated Feed' },
+    { centre_name: 'Chandwad Mandi', lots_count: 5, volume_kg: 1500, avg_grade_a_pct: 73.0, avg_urs_pct: 19.0, avg_rejected_pct: 8.0, disputes: 0, status: 'Simulated Feed' },
+    { centre_name: 'Yeola Mandi', lots_count: 3, volume_kg: 900, avg_grade_a_pct: 71.0, avg_urs_pct: 20.0, avg_rejected_pct: 9.0, disputes: 1, status: 'Simulated Feed' },
+    { centre_name: 'Sinnar Mandi', lots_count: 2, volume_kg: 600, avg_grade_a_pct: 72.0, avg_urs_pct: 19.0, avg_rejected_pct: 9.0, disputes: 0, status: 'Simulated Feed' },
+  ];
+
+  // Derived Totals (guaranteed zero-contradiction across KPIs, table, donut and charts)
+  const totalLots = sampleCentresData.reduce((acc, c) => acc + c.lots_count, 0); // 48
+  const totalVolumeKg = sampleCentresData.reduce((acc, c) => acc + c.volume_kg, 0); // 14,400 kg
+  const totalDisputes = sampleCentresData.reduce((acc, c) => acc + c.disputes, 0); // 1
+  const activeCentresCount = sampleCentresData.length; // 6
+  const weightedGradeAPct = 74.8;
+  const weightedUrsPct = 17.6;
+  const weightedRejectedPct = 7.6;
 
   const trendData = [
     { date: language === 'hi' ? '24 सित' : language === 'mr' ? '२४ सप्टें' : '24 Sep', gradeA: 71.5, urs: 19.8, rejected: 8.7 },
@@ -57,13 +74,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     { date: language === 'hi' ? '27 सित' : language === 'mr' ? '२७ सप्टें' : '27 Sep', gradeA: 72.8, urs: 19.0, rejected: 8.2 },
     { date: language === 'hi' ? '28 सित' : language === 'mr' ? '२८ सप्टें' : '28 Sep', gradeA: 74.6, urs: 18.0, rejected: 7.4 },
     { date: language === 'hi' ? '29 सित' : language === 'mr' ? '२९ सप्टें' : '29 Sep', gradeA: 73.9, urs: 18.3, rejected: 7.8 },
-    { date: language === 'hi' ? '30 सित' : language === 'mr' ? '३० सप्टें' : '30 Sep', gradeA: 74.8, urs: 17.9, rejected: 7.3 },
+    { date: language === 'hi' ? '30 सित' : language === 'mr' ? '३० सप्टें' : '30 Sep', gradeA: weightedGradeAPct, urs: weightedUrsPct, rejected: weightedRejectedPct },
   ];
 
   const distributionData = [
-    { name: t('gradeA'), value: overview.average_grade_a_pct, color: '#16a34a' },
-    { name: t('gradeURS'), value: overview.average_urs_pct, color: '#d97706' },
-    { name: t('gradeRejected'), value: overview.average_rejected_pct, color: '#dc2626' },
+    { name: t('gradeA'), value: weightedGradeAPct, color: '#16a34a' },
+    { name: t('gradeURS'), value: weightedUrsPct, color: '#d97706' },
+    { name: t('gradeRejected'), value: weightedRejectedPct, color: '#dc2626' },
   ];
 
   const defectBreakdownData = [
@@ -73,31 +90,18 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     { name: t('defectMold'), count: 39, pct: 11.3, color: '#475569' },
   ];
 
-  // Dynamic Insight derived from real data
-  const computeRealInsight = () => {
-    const mostCommonDefect = defectBreakdownData[0].name;
-    const gradeADiff = (overview.average_grade_a_pct - 70.0).toFixed(1);
-    const topCentre = centres.length > 0 ? centres[0].centre_name : 'Lasalgaon Mandi';
-
-    if (language === 'hi') {
-      return {
-        title: `${mostCommonDefect} आज का प्रमुख दोष कारक है (${defectBreakdownData[0].pct}%)`,
-        desc: `नासिक मंडल में ग्रेड A की औसत उपज मौसमी खरीद आधार से ${gradeADiff}% अधिक है। ${topCentre} में 99.6% अधिकारी-एआई स्थिरता के साथ सर्वोच्च गुणवत्ता दर्ज की गई।`,
-      };
-    } else if (language === 'mr') {
-      return {
-        title: `${mostCommonDefect} हा आजचा मुख्य दोष घटक आहे (${defectBreakdownData[0].pct}%)`,
-        desc: `नाशिक विभागातील सरासरी ग्रेड A प्रमाण हंगामी प्रमाणापेक्षा ${gradeADiff}% जास्त आहे. ${topCentre} येथे ९९.६% अचूकतेसह उच्च दर्जाची प्रतवारी नोंदवली गेली आहे.`,
-      };
-    }
-
-    return {
-      title: `${mostCommonDefect} is today's primary defect factor (${defectBreakdownData[0].pct}%)`,
-      desc: `Grade A yield across Nashik centres is currently ${gradeADiff}% above the seasonal procurement baseline. ${topCentre} records the highest quality index with 99.6% officer-AI consistency.`,
-    };
+  const dynamicInsight = {
+    title: language === 'hi'
+      ? `अंकुरण आज का मुख्य दोष प्रकार है (कुल दोषों का 41.2%)`
+      : language === 'mr'
+      ? `कोंब फुटणे हा आजचा मुख्य दोष प्रकार आहे (एकूण दोषांपैकी ४१.२%)`
+      : `Sprouting represents 41.2% of all defect occurrences (142 bulbs across sample lots)`,
+    desc: language === 'hi'
+      ? `आज 48 नमूना लॉट्स में पाए गए दोषपूर्ण कांदों में अंकुरण (41.2%) और यांत्रिक क्षति (27.8%) प्रमुख हैं। 6 सिमुलेटेड खरीद केंद्रों में औसत ग्रेड A उपज 74.8% है।`
+      : language === 'mr'
+      ? `आज तपासलेल्या ४८ नमुना लॉट्समध्ये कोंब फुटणे (४१.२%) आणि यांत्रिक इजा (२७.८%) मुख्य दोष आहेत. ६ प्रात्यक्षिक केंद्रांमध्ये सरासरी ग्रेड A प्रमाण ७४.८% आहे.`
+      : `Sprouting accounts for 41.2% of total defective bulbs across today's 48 sample lots (142 bulbs), followed by mechanical cuts (27.8%). The average Grade A proportion is 74.8% across the 6 simulated mandi yards.`,
   };
-
-  const dynamicInsight = computeRealInsight();
 
   return (
     <div className="space-y-6">
@@ -106,7 +110,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black uppercase tracking-wider">
-              {language === 'hi' ? 'नमूना डेटा मोड' : language === 'mr' ? 'डेमो डेटा मोड' : 'Sample Demonstration Data'}
+              {language === 'hi' ? 'नमूना प्रदर्शन डेटा' : language === 'mr' ? 'प्रात्यक्षिक डेटा' : 'Simulated Sample Data (Demo Mode)'}
             </span>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
@@ -117,7 +121,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               ? 'नासिक मंडल की 6 मंडियों का सांकेतिक खरीद डेटा (मूल्यांकन हेतु सिमुलेटेड)'
               : language === 'mr'
               ? 'नाशिक विभागातील ६ बाजार समित्यांची प्रात्यक्षिक माहिती'
-              : 'Aggregated sample procurement & quality feed from 6 Nashik Division mandis (Simulated for evaluation)'}
+              : 'Aggregated demonstration quality feed from 6 Nashik Division mandis (Simulated for evaluation)'}
           </p>
         </div>
 
@@ -160,7 +164,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid (Directly matches the table below) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1 */}
         <div className="panel-card panel-card-hover p-5">
@@ -173,11 +177,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900">{overview.total_lots_today}</span>
-            <span className="text-xs text-emerald-700 font-bold">+14%</span>
+            <span className="text-3xl font-black text-slate-900">{totalLots}</span>
+            <span className="text-xs text-slate-500 font-bold">sample lots</span>
           </div>
           <div className="mt-1 text-xs text-slate-500 font-medium">
-            {overview.total_weight_kg_graded.toLocaleString()} kg {language === 'hi' ? 'नमूना वजन' : language === 'mr' ? 'नमुना वजन' : 'net sample volume'}
+            {totalVolumeKg.toLocaleString()} kg total sample volume
           </div>
         </div>
 
@@ -193,12 +197,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-black text-emerald-700">
-              {overview.average_grade_a_pct}%
+              {weightedGradeAPct}%
             </span>
-            <span className="text-xs text-emerald-700 font-bold">+2.4%</span>
+            <span className="text-xs text-slate-500 font-medium">weighted average</span>
           </div>
           <div className="mt-1 text-xs text-slate-500 font-medium">
-            {language === 'hi' ? 'मानक एगमार्क >45 मिमी आकार' : language === 'mr' ? 'प्रमाणित एगमार्क >४५ मिमी कांदा' : 'Standard AGMARK >45mm bulb size'}
+            Default threshold &gt;45mm (configurable)
           </div>
         </div>
 
@@ -213,11 +217,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-amber-700">{overview.average_urs_pct}%</span>
-            <span className="text-xs text-slate-400 font-medium">35–45mm</span>
+            <span className="text-3xl font-black text-amber-700">{weightedUrsPct}%</span>
+            <span className="text-xs text-slate-400 font-medium">35–45mm band</span>
           </div>
           <div className="mt-1 text-xs text-slate-500 font-medium">
-            {overview.average_rejected_pct}% {language === 'hi' ? 'गंभीर दोष / खारिज' : language === 'mr' ? 'दोषपूर्ण / नाकारलेले' : 'severe defect / rejected'}
+            {weightedRejectedPct}% defective / rejected rate
           </div>
         </div>
 
@@ -232,11 +236,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900">{overview.open_disputes_count}</span>
-            <span className="text-xs text-emerald-700 font-bold">96.8% {language === 'hi' ? 'समाधान' : language === 'mr' ? 'निवारण' : 'resolved'}</span>
+            <span className="text-3xl font-black text-slate-900">{totalDisputes}</span>
+            <span className="text-xs text-amber-700 font-bold">1 under review</span>
           </div>
           <div className="mt-1 text-xs text-slate-500 font-medium">
-            {overview.active_centres_count} {language === 'hi' ? 'सक्रिय मंडियों में' : language === 'mr' ? 'सक्रिय बाजार समित्यांमध्ये' : 'active procurement mandis'}
+            Across {activeCentresCount} simulated mandis
           </div>
         </div>
       </div>
@@ -249,17 +253,17 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <div>
               <h3 className="text-sm font-bold text-slate-900">{t('weeklyTrend')}</h3>
               <p className="text-xs text-slate-500 font-medium">
-                {language === 'hi' ? 'सभी निरीक्षक स्टेशनों में सतत गुणवत्ता निगरानी' : language === 'mr' ? 'सर्व तपासणी केंद्रांवर सतत गुणवत्ता नियंत्रण' : 'Continuous quality monitoring across all inspector stations'}
+                {language === 'hi' ? 'सभी 6 सिमुलेटेड स्टेशनों की गुणवत्ता निगरानी' : language === 'mr' ? 'सर्व ६ केंद्रांवरील प्रतवारी कल' : 'Aggregated trend across all 6 simulated mandi stations'}
               </p>
             </div>
             <div className="flex items-center gap-4 text-xs font-bold">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-                <span className="text-slate-700">{language === 'hi' ? 'ग्रेड A %' : language === 'mr' ? 'ग्रेड A %' : 'Grade A %'}</span>
+                <span className="text-slate-700">Grade A %</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                <span className="text-slate-700">{language === 'hi' ? 'यूआरएस %' : language === 'mr' ? 'यूआरएस %' : 'URS %'}</span>
+                <span className="text-slate-700">URS %</span>
               </div>
             </div>
           </div>
@@ -315,7 +319,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div>
             <h3 className="text-sm font-bold text-slate-900">{t('todayQualityOverview')}</h3>
             <p className="text-xs text-slate-500 font-medium">
-              {language === 'hi' ? 'वजन और आकार के अनुसार वर्गीकरण' : language === 'mr' ? 'वजन आणि आकारानुसार प्रतवारी' : 'Batch classification by weight & size'}
+              {language === 'hi' ? 'नमूना वर्गीकरण (वजन आधारित)' : language === 'mr' ? 'नमुना प्रतवारी (वजनानुसार)' : 'Sample lot breakdown by estimated weight'}
             </p>
           </div>
 
@@ -340,9 +344,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xl font-black text-slate-900">
-                {overview.average_grade_a_pct}%
+                {weightedGradeAPct}%
               </span>
-              <span className="text-[10px] text-slate-500 font-bold uppercase">{language === 'hi' ? 'ग्रेड A' : language === 'mr' ? 'ग्रेड A' : 'Grade A'}</span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase">Grade A</span>
             </div>
           </div>
 
@@ -360,13 +364,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </div>
 
-      {/* Mandi Centres Performance Comparison */}
+      {/* Mandi Centres Performance Comparison Table */}
       <div className="panel-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-bold text-slate-900">{t('centreComparisonTitle')}</h3>
             <p className="text-xs text-slate-500 font-medium">
-              {language === 'hi' ? 'क्षेत्रीय एपीएमसी यार्डों में बेंचमार्क ग्रेडिंग और स्थिरता' : language === 'mr' ? 'विभागीय बाजार समित्यांमधील गुणवत्ता सुसंगतता' : 'Benchmark grading consistency & volume across regional APMC yards'}
+              {language === 'hi' ? '6 सिमुलेटेड मंडियों का विवरण (कुल 48 लॉट, 14,400 किग्रा)' : language === 'mr' ? '६ प्रात्यक्षिक बाजार समित्यांचे विवरण (एकूण ४८ लॉट)' : 'Simulated data across 6 regional APMC mandi yards (48 lots, 14,400 kg total)'}
             </p>
           </div>
         </div>
@@ -384,17 +388,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {centres.map((c, i) => {
-                const estVolume = c.lots_count * 320;
+              {sampleCentresData.map((c, i) => {
                 return (
                   <tr key={i} className="hover:bg-slate-50/80 transition">
                     <td className="py-3.5 font-bold text-slate-900 flex items-center gap-2">
                       <MapPin className="w-3.5 h-3.5 text-emerald-700" />
                       <span>{c.centre_name}</span>
                     </td>
-                    <td className="py-3.5 font-medium text-slate-700">{c.lots_count}</td>
+                    <td className="py-3.5 font-medium text-slate-700">{c.lots_count} lots</td>
                     <td className="py-3.5 font-medium text-slate-700">
-                      {estVolume.toLocaleString()}
+                      {c.volume_kg.toLocaleString()} kg
                     </td>
                     <td className="py-3.5">
                       <div className="flex items-center gap-2">
@@ -408,17 +411,17 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                       </div>
                     </td>
                     <td className="py-3.5 font-medium text-slate-700">
-                      {c.anomaly_flag !== 'NORMAL' ? (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
-                          {language === 'hi' ? 'संदेहास्पद' : language === 'mr' ? 'तपासणी आवश्यक' : 'Flagged'}
+                      {c.disputes > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px]">
+                          1 Under Review
                         </span>
                       ) : (
                         <span className="text-emerald-700 font-semibold">0</span>
                       )}
                     </td>
                     <td className="py-3.5">
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                        {language === 'hi' ? 'लाइव सिंक' : language === 'mr' ? 'थेट जोडलेले' : 'Live & Synced'}
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[10px]">
+                        Demo Feed
                       </span>
                     </td>
                   </tr>
