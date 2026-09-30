@@ -48,7 +48,7 @@ class SegmentResult:
 
 
 class YOLOSegmentor:
-    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.22):
+    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.16):
         self.conf_threshold = conf_threshold
         self.model = None
 
@@ -74,7 +74,7 @@ class YOLOSegmentor:
                 print(f"[YOLOSegmentor] Note: Could not load model from '{model_path}': {e}.")
 
     def infer(self, image: np.ndarray) -> List[SegmentResult]:
-        """Run YOLO inference on image array with confidence & geometry filtering."""
+        """Run YOLO inference on image array with multi-bulb cluster support."""
         if image is None or image.size == 0:
             return []
 
@@ -82,8 +82,8 @@ class YOLOSegmentor:
         total_img_area = float(img_h * img_w)
 
         if self.model is not None:
-            # Sensitive confidence threshold 0.22 and IoU NMS 0.40
-            results = self.model(image, conf=self.conf_threshold, iou=0.40, verbose=False)
+            # iou=0.60 allows detecting adjacent touching onions in baskets/trays
+            results = self.model(image, conf=self.conf_threshold, iou=0.60, verbose=False)
             output: List[SegmentResult] = []
 
             if len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -117,13 +117,13 @@ class YOLOSegmentor:
                     box_area = bw * bh
 
                     # Physical plausibility checks:
-                    # 1. Reject giant bounding boxes (e.g. human torso or whole room background > 30% of view)
-                    if (box_area / total_img_area) > 0.30:
+                    # 1. Reject giant bounding boxes (> 60% of total image)
+                    if (box_area / total_img_area) > 0.60:
                         continue
 
-                    # 2. Reject extreme aspect ratios
+                    # 2. Reject extreme aspect ratios (lines or thin bars)
                     aspect = bw / bh
-                    if aspect < 0.45 or aspect > 2.30:
+                    if aspect < 0.30 or aspect > 3.0:
                         continue
 
                     raw_name = model_names.get(c_id, CLASSES[c_id] if c_id < len(CLASSES) else f"class_{c_id}")

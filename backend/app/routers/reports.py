@@ -182,29 +182,27 @@ async def analyze_onion_images(
     avg_diameter = round(lot_summary.get("average_diameter_mm", 0.0), 1)
 
     formatted_onions = []
-    auto_count = 0
+    auto_count = lot_summary.get("auto_graded_count", 0)
 
     for idx, o in enumerate(raw_onions):
         conf = float(o.get("confidence", 0.90))
-        is_auto = conf >= 0.70
-        if is_auto:
-            auto_count += 1
-
-        cls_name = o.get("class_name", "healthy")
+        st = o.get("status", "AUTO" if conf >= 0.50 else "NEEDS_MANUAL_CHECK")
+        cls_name = o.get("class_name", "Healthy")
         dia = round(float(o.get("diameter_mm", 50.0)), 1)
         wt = round(float(o.get("weight_g", 75.0)), 1)
         grade = o.get("grade", "GRADE_A")
-        reason = o.get("reason", f"Size: {dia}mm. Class: {cls_name}.")
+        reasons_list = o.get("reasons", [])
+        reason_str = "; ".join(reasons_list) if isinstance(reasons_list, list) and len(reasons_list) > 0 else f"Size: {dia}mm. Class: {cls_name}."
 
         formatted_onions.append({
             "onion_id": f"ONION-{idx + 1:03d}",
             "class": cls_name,
             "confidence": conf,
-            "status": "AUTO" if is_auto else "NEEDS_MANUAL_CHECK",
+            "status": st,
             "diameter_mm": dia,
             "estimated_weight_g": wt,
             "grade": grade,
-            "reason": reason,
+            "reason": reason_str,
         })
 
     # Storage Risk calculation

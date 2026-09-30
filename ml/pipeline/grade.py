@@ -22,13 +22,8 @@ class GradingEngine:
 
     def grade_single_onion(self, onion: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Grades a single onion instance based on size, defect class, and confidence.
-        Classes:
-          0 - Damaged
-          1 - Healthy
-          2 - Onions-Quality-Analysis
-          3 - Rotten
-          4 - Sprouted
+        Grades a single onion instance based on AGMARK size standards and defect classification.
+        Assigns physical grade (GRADE_A, URS, REJECTED) and selective prediction routing (AUTO vs NEEDS_MANUAL_CHECK).
         """
         diameter = float(onion.get("diameter_mm", 0.0))
         raw_class_name = str(onion.get("class_name", "Healthy"))
@@ -37,43 +32,40 @@ class GradingEngine:
         view_conflict = bool(onion.get("view_conflict", False))
 
         reasons = []
-        grade = "GRADE_A"
 
-        # Check for uncertainty / manual check
-        min_conf = self.grades_config.get("GRADE_A", {}).get("min_confidence", 0.60)
-        if confidence < min_conf:
-            grade = "NEEDS_MANUAL_CHECK"
-            reasons.append(f"Low AI model confidence ({confidence*100:.1f}% < {min_conf*100:.0f}%)")
-
-        if view_conflict:
-            reasons.append("Front and back view classification discrepancy")
-
-        # Check Rejection criteria
-        if class_name_lower in ["rotten", "damaged", "sprouted"]:
-            grade = "REJECTED"
+        # 1. Determine physical AGMARK grade based on defect and size
+        if class_name_lower in ["rotten", "damaged", "sprouted", "mould"]:
+            physical_grade = "REJECTED"
             defect_desc = self.defect_labels.get(raw_class_name, raw_class_name)
-            reasons.append(f"Severe defect detected: {defect_desc}")
+            reasons.append(f"Severe defect: {defect_desc}")
         elif diameter < 35.0:
-            grade = "REJECTED"
-            reasons.append(f"Undersized for procurement: {diameter:.1f}mm (< 35.0mm cutoff)")
+            physical_grade = "REJECTED"
+            reasons.append(f"Undersized for procurement ({diameter:.1f}mm < 35.0mm cutoff)")
         elif diameter > 95.0:
-            grade = "REJECTED"
-            reasons.append(f"Oversized bulb: {diameter:.1f}mm (> 95.0mm cutoff)")
+            physical_grade = "REJECTED"
+            reasons.append(f"Oversized bulb ({diameter:.1f}mm > 95.0mm cutoff)")
+        elif 35.0 <= diameter < 45.0:
+            physical_grade = "URS"
+            reasons.append(f"Under-sized bulb ({diameter:.1f}mm in URS range 35–44.9mm)")
+        else:
+            physical_grade = "GRADE_A"
+            reasons.append(f"Standard Grade A size ({diameter:.1f}mm) and sound quality")
 
-        # Check URS criteria (if not rejected)
-        if grade not in ["REJECTED", "NEEDS_MANUAL_CHECK"]:
-            urs_min = self.grades_config.get("URS", {}).get("min_diameter_mm", 35.0)
-            urs_max = self.grades_config.get("URS", {}).get("max_diameter_mm", 44.9)
-            if urs_min <= diameter <= urs_max:
-                grade = "URS"
-                reasons.append(f"Small / Under-sized bulb ({diameter:.1f}mm in URS range 35-44.9mm)")
-            else:
-                grade = "GRADE_A"
-                reasons.append(f"Standard size ({diameter:.1f}mm) and healthy skin quality")
+        # 2. Determine selective prediction routing status (AUTO vs NEEDS_MANUAL_CHECK)
+        min_auto_conf = 0.50
+        is_auto = (confidence >= min_auto_conf) and (not view_conflict)
+        routing_status = "AUTO" if is_auto else "NEEDS_MANUAL_CHECK"
+
+        if not is_auto:
+            if confidence < min_auto_conf:
+                reasons.append(f"Flagged for review: AI confidence ({confidence*100:.1f}%) < {min_auto_conf*100:.0f}%")
+            if view_conflict:
+                reasons.append("Flagged for review: Multi-view conflict")
 
         return {
             "onion_id": onion.get("onion_id", 1),
-            "grade": grade,
+            "grade": physical_grade,
+            "status": routing_status,
             "class_name": raw_class_name,
             "class_display": self.defect_labels.get(raw_class_name, raw_class_name),
             "diameter_mm": round(diameter, 1),
@@ -118,14 +110,21 @@ class GradingEngine:
         defect_counts: Dict[str, int] = {}
         size_bins = {"<35mm": 0, "35-45mm": 0, "45-60mm": 0, "60-75mm": 0, ">75mm": 0}
 
+        auto_count = 0
         for o in graded_onions:
             g = o["grade"]
             w = o["weight_g"]
             d = o["diameter_mm"]
             c = o["class_name"]
+            st = o.get("status", "AUTO")
 
             counts[g] = counts.get(g, 0) + 1
             weights[g] = weights.get(g, 0.0) + w
+
+            if st == "AUTO":
+                auto_count += 1
+            else:
+                counts["NEEDS_MANUAL_CHECK"] = counts.get("NEEDS_MANUAL_CHECK", 0) + 1
 
             defect_counts[c] = defect_counts.get(c, 0) + 1
 
@@ -140,7 +139,12 @@ class GradingEngine:
             else:
                 size_bins[">75mm"] += 1
 
-        pct_count = {k: round((v / total_count) * 100.0, 1) for k, v in counts.items()}
+        pct_count = {
+            "GRADE_A": round((counts["GRADE_A"] / total_count) * 100.0, 1),
+            "URS": round((counts["URS"] / total_count) * 100.0, 1),
+            "REJECTED": round((counts["REJECTED"] / total_count) * 100.0, 1),
+            "NEEDS_MANUAL_CHECK": round((counts["NEEDS_MANUAL_CHECK"] / total_count) * 100.0, 1),
+        }
         pct_weight = {
             k: round((v / total_weight_g) * 100.0, 1) if total_weight_g > 0 else 0.0
             for k, v in weights.items()
@@ -148,12 +152,9 @@ class GradingEngine:
 
         avg_diameter = round(sum(o["diameter_mm"] for o in graded_onions) / total_count, 1)
 
-        max_urs_allowed = self.lot_tolerances.get("max_urs_weight_pct_for_grade_a_lot", 10.0)
-        max_defects_allowed = self.lot_tolerances.get("max_defective_weight_pct_for_procurement", 5.0)
-
-        if pct_weight["REJECTED"] > max_defects_allowed:
+        if pct_count["REJECTED"] > 15.0:
             lot_verdict = "REJECTED"
-        elif pct_weight["URS"] > max_urs_allowed:
+        elif pct_count["URS"] > 25.0:
             lot_verdict = "URS_LOT"
         else:
             lot_verdict = "GRADE_A_LOT"
@@ -161,6 +162,8 @@ class GradingEngine:
         return {
             "rules_version": self.version,
             "total_count": total_count,
+            "auto_graded_count": auto_count,
+            "needs_check_count": total_count - auto_count,
             "total_weight_g": round(total_weight_g, 1),
             "sample_weight_kg": sample_weight_kg,
             "total_lot_weight_kg": total_lot_weight_kg,
@@ -172,6 +175,5 @@ class GradingEngine:
             "size_distribution": size_bins,
             "average_diameter_mm": avg_diameter,
             "lot_verdict": lot_verdict,
-            "has_unresolved_manual_checks": counts["NEEDS_MANUAL_CHECK"] > 0,
             "onions": graded_onions,
         }
