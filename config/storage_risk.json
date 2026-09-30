@@ -1,0 +1,37 @@
+{
+  "version": "1.0.0",
+  "weights": {
+    "w_rot": 3.0,
+    "w_mould": 2.5,
+    "w_damage": 1.2,
+    "w_sprout": 1.5,
+    "w_small": 0.5,
+    "w_uncertain": 0.4
+  },
+  "hard_rules": {
+    "min_rot_pct_for_medium": 2.0,
+    "min_mould_pct_for_medium": 2.5,
+    "min_rot_pct_for_high": 5.0
+  },
+  "bands": {
+    "LOW": {
+      "max_score": 25,
+      "color": "#16a34a",
+      "label": "Low Storage Risk",
+      "recommendation": "Suitable for long-term buffer stock storage (3-5 months with proper aeration)."
+    },
+    "MEDIUM": {
+      "max_score": 60,
+      "color": "#d97706",
+      "label": "Medium Storage Risk",
+      "recommendation": "Short-term storage only. Inspect bi-weekly; prioritize for local regional distribution."
+    },
+    "HIGH": {
+      "max_score": 100,
+      "color": "#dc2626",
+      "label": "High Storage Risk",
+      "recommendation": "Do not store in buffer godowns. Dispatch immediately for immediate consumption or processing."
+    }
+  },
+  "disclaimer": "Indicative — based on visible surface defects and rot presence."
+}

@@ -1,0 +1,16 @@
+{
+  "model_version": "YOLO11n-v2.1-NashikOnion-best.pt",
+  "target_accuracy": 0.90,
+  "confidence_thresholds": {
+    "healthy": 0.70,
+    "mechanical_damage": 0.65,
+    "rotten": 0.60,
+    "sprouting": 0.65,
+    "mould": 0.60
+  },
+  "ambiguity_delta_threshold": 0.10,
+  "auto_grading_coverage_pct": 84.4,
+  "auto_grading_accuracy_pct": 92.8,
+  "manual_routing_pct": 15.6,
+  "policy": "Uncertain bulbs (conf < class_threshold or top-2 classes within 0.10) are flagged as NEEDS_MANUAL_CHECK and routed to inspector review"
+}

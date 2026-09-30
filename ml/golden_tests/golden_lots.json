@@ -1,0 +1,59 @@
+{
+  "golden_lots": [
+    {
+      "lot_id": "GOLDEN_LOT_01_MIXED_FAQ",
+      "description": "Standard mixed lot with Grade A, URS, and Sprouted defect",
+      "input_onions": [
+        {"onion_id": 1, "class_name": "Healthy", "diameter_mm": 54.2, "length_mm": 56.0, "width_mm": 54.2, "confidence": 0.94, "centroid_mm": [60.0, 80.0], "view_conflict": false},
+        {"onion_id": 2, "class_name": "Healthy", "diameter_mm": 48.5, "length_mm": 50.1, "width_mm": 48.5, "confidence": 0.91, "centroid_mm": [120.0, 90.0], "view_conflict": false},
+        {"onion_id": 3, "class_name": "Healthy", "diameter_mm": 41.2, "length_mm": 43.0, "width_mm": 41.2, "confidence": 0.89, "centroid_mm": [180.0, 75.0], "view_conflict": false},
+        {"onion_id": 4, "class_name": "Sprouted", "diameter_mm": 52.0, "length_mm": 58.0, "width_mm": 52.0, "confidence": 0.92, "centroid_mm": [80.0, 150.0], "view_conflict": false},
+        {"onion_id": 5, "class_name": "Healthy", "diameter_mm": 32.0, "length_mm": 34.0, "width_mm": 32.0, "confidence": 0.88, "centroid_mm": [140.0, 160.0], "view_conflict": false}
+      ],
+      "expected_output": {
+        "total_count": 5,
+        "grade_breakdown_count": {
+          "GRADE_A": 2,
+          "URS": 1,
+          "REJECTED": 2,
+          "NEEDS_MANUAL_CHECK": 0
+        },
+        "per_onion_grades": [
+          {"onion_id": 1, "grade": "GRADE_A"},
+          {"onion_id": 2, "grade": "GRADE_A"},
+          {"onion_id": 3, "grade": "URS"},
+          {"onion_id": 4, "grade": "REJECTED"},
+          {"onion_id": 5, "grade": "REJECTED"}
+        ]
+      }
+    },
+    {
+      "lot_id": "GOLDEN_LOT_02_VIEW_FUSION",
+      "description": "Two-view fusion where back view uncovers Rotten defect underneath an apparently Healthy top",
+      "front_view": [
+        {"onion_id": 1, "class_name": "Healthy", "diameter_mm": 58.0, "length_mm": 60.0, "width_mm": 58.0, "confidence": 0.90, "centroid_mm": [100.0, 100.0]},
+        {"onion_id": 2, "class_name": "Healthy", "diameter_mm": 52.0, "length_mm": 54.0, "width_mm": 52.0, "confidence": 0.88, "centroid_mm": [160.0, 100.0]}
+      ],
+      "back_view": [
+        {"onion_id": 1, "class_name": "Rotten", "diameter_mm": 57.5, "length_mm": 59.5, "width_mm": 57.5, "confidence": 0.93, "centroid_mm": [102.0, 101.5]},
+        {"onion_id": 2, "class_name": "Healthy", "diameter_mm": 52.2, "length_mm": 54.5, "width_mm": 52.2, "confidence": 0.89, "centroid_mm": [159.0, 99.0]}
+      ],
+      "expected_fused_grades": [
+        {"onion_id": 1, "fused_class": "Rotten", "grade": "REJECTED", "view_conflict": true},
+        {"onion_id": 2, "fused_class": "Healthy", "grade": "GRADE_A", "view_conflict": false}
+      ]
+    },
+    {
+      "lot_id": "GOLDEN_LOT_03_LOW_CONFIDENCE_UNCERTAINTY",
+      "description": "Onion with low confidence triggers NEEDS_MANUAL_CHECK",
+      "input_onions": [
+        {"onion_id": 1, "class_name": "Healthy", "diameter_mm": 55.0, "length_mm": 57.0, "width_mm": 55.0, "confidence": 0.48, "centroid_mm": [100.0, 100.0], "view_conflict": false}
+      ],
+      "expected_output": {
+        "per_onion_grades": [
+          {"onion_id": 1, "grade": "NEEDS_MANUAL_CHECK"}
+        ]
+      }
+    }
+  ]
+}

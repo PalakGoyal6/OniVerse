@@ -1,0 +1,101 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-09-30T00:00:00Z",
+  "standard_name": "AGMARK & National Procurement Agency Standard (Onion)",
+  "standard_reference": "AGMARK Rules 1985 & DAC&FW Operational Guidelines",
+  "classes": [
+    "Damaged",
+    "Healthy",
+    "Onions-Quality-Analysis",
+    "Rotten",
+    "Sprouted"
+  ],
+  "class_mapping": {
+    "0": "Damaged",
+    "1": "Healthy",
+    "2": "Onions-Quality-Analysis",
+    "3": "Rotten",
+    "4": "Sprouted"
+  },
+  "marker_config": {
+    "dictionary": "DICT_4X4_50",
+    "marker_id": 0,
+    "physical_size_mm": 50.0,
+    "height_correction_factor": 0.965,
+    "min_detection_confidence": 0.70,
+    "max_skew_degrees": 25.0
+  },
+  "camera_quality_thresholds": {
+    "min_luminance": 40.0,
+    "max_luminance": 230.0,
+    "min_laplacian_variance": 100.0,
+    "min_sheet_coverage_pct": 0.75
+  },
+  "grades": {
+    "GRADE_A": {
+      "display_name": "Grade A (FAQ / Premium)",
+      "min_diameter_mm": 45.0,
+      "max_diameter_mm": 90.0,
+      "allowed_defects": [],
+      "min_confidence": 0.60,
+      "color_hex": "#10B981"
+    },
+    "URS": {
+      "display_name": "URS (Under Sized / Sub-standard)",
+      "min_diameter_mm": 35.0,
+      "max_diameter_mm": 44.9,
+      "allowed_defects": [],
+      "min_confidence": 0.55,
+      "color_hex": "#F59E0B"
+    },
+    "REJECTED": {
+      "display_name": "Rejected / Non-Procureable",
+      "conditions": [
+        "diameter < 35.0mm",
+        "diameter > 95.0mm",
+        "defect in [Rotten, Damaged, Sprouted]"
+      ],
+      "color_hex": "#EF4444"
+    },
+    "NEEDS_MANUAL_CHECK": {
+      "display_name": "Needs Manual Verification",
+      "trigger_conditions": [
+        "confidence < 0.55",
+        "front_back_view_conflict",
+        "unusual_aspect_ratio"
+      ],
+      "color_hex": "#6B7280"
+    }
+  },
+  "defect_priority_order": [
+    "Rotten",
+    "Damaged",
+    "Sprouted",
+    "Onions-Quality-Analysis",
+    "Healthy"
+  ],
+  "defect_labels": {
+    "Healthy": "Healthy / Sound",
+    "Damaged": "Mechanically Damaged / Cut / Peeled",
+    "Onions-Quality-Analysis": "Onion Quality Analysis",
+    "Rotten": "Rotten / Decayed Flesh",
+    "Sprouted": "Sprouted (Premature Germination)"
+  },
+  "weight_model": {
+    "formula": "k * (pi / 6) * length_mm * width_mm * width_mm * 1e-3",
+    "density_k": 0.000982,
+    "power_model_a": 0.00115,
+    "power_model_b": 0.988,
+    "selected_model": "linear_ellipsoid"
+  },
+  "two_view_fusion": {
+    "max_centroid_distance_mm": 35.0,
+    "max_size_difference_ratio": 0.35,
+    "unmatched_penalty_score": 100.0
+  },
+  "lot_tolerances": {
+    "max_urs_weight_pct_for_grade_a_lot": 10.0,
+    "max_defective_weight_pct_for_procurement": 5.0,
+    "max_extraneous_matter_pct": 1.0
+  }
+}

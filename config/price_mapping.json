@@ -1,0 +1,11 @@
+{
+  "currency": "INR",
+  "unit": "₹ / kg",
+  "pricing_multipliers": {
+    "GRADE_A": 1.0,
+    "URS": 0.60,
+    "REJECTED": 0.0
+  },
+  "default_market": "Lasalgaon",
+  "disclaimer": "Indicative valuation based on Agmarknet modal prices; not a legal procurement guarantee."
+}
