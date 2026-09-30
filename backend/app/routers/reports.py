@@ -182,7 +182,7 @@ async def analyze_onion_images(
     needs_check_count = lot_summary.get("needs_check_count", total_count - auto_count)
     summary_status = lot_summary.get("summary_status_text", f"{auto_count} of {total_count} auto-graded • {needs_check_count} need your check")
 
-    lot_verdict = lot_summary.get("lot_verdict", "GRADE_A" if grade_a_pct >= 70 else ("URS" if grade_a_pct >= 50 else ("REJECTED" if rejected_pct > 15 else "NEEDS_MANUAL_CHECK")))
+    lot_verdict = lot_summary.get("lot_verdict", "NO_ONIONS_DETECTED" if total_count == 0 else ("PENDING_REVIEW" if auto_count == 0 else "GRADE_A"))
     avg_dia_raw = lot_summary.get("average_diameter_mm")
     avg_diameter = round(float(avg_dia_raw), 1) if avg_dia_raw is not None else None
 
@@ -194,7 +194,7 @@ async def analyze_onion_images(
         dia_raw = o.get("diameter_mm")
         dia = round(float(dia_raw), 1) if dia_raw is not None else None
         wt_raw = o.get("weight_g")
-        wt = round(float(wt_raw), 1) if wt_raw is not None else None
+        wt = round(float(wt_raw), 1) if (wt_raw is not None and dia is not None) else None
         grade = o.get("grade", "GRADE_A")
         reasons_list = o.get("reasons", [])
         
@@ -215,7 +215,11 @@ async def analyze_onion_images(
         })
 
     # Storage Risk calculation
-    if rejected_pct > 25.0:
+    if total_count == 0 or auto_count == 0:
+        risk_score = None
+        risk_band = "PENDING"
+        risk_rec = "Storage suitability assessment is pending officer review and defect confirmation."
+    elif rejected_pct > 25.0:
         risk_score = 78
         risk_band = "HIGH"
         risk_rec = "High spoilage risk (apical sprouting / rot detected). Dispatch immediately for distribution."

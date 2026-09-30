@@ -103,7 +103,7 @@ class GradingEngine:
                 reasons.append("Provisional / Pending check: ArUco marker missing, size measurement required")
 
         raw_wt = onion.get("weight_g")
-        est_weight = round(float(raw_wt), 1) if raw_wt is not None and float(raw_wt) > 0.0 else None
+        est_weight = round(float(raw_wt), 1) if (raw_wt is not None and float(raw_wt) > 0.0 and has_size) else None
 
         return {
             "onion_id": onion.get("onion_id", 1),
@@ -113,8 +113,8 @@ class GradingEngine:
             "class_name": raw_class_name,
             "class_display": self.defect_labels.get(raw_class_name, raw_class_name),
             "diameter_mm": round(diameter, 1) if diameter is not None else None,
-            "length_mm": round(float(onion.get("length_mm")), 1) if onion.get("length_mm") is not None else None,
-            "width_mm": round(float(onion.get("width_mm")), 1) if onion.get("width_mm") is not None else None,
+            "length_mm": round(float(onion.get("length_mm")), 1) if (onion.get("length_mm") is not None and has_size) else None,
+            "width_mm": round(float(onion.get("width_mm")), 1) if (onion.get("width_mm") is not None and has_size) else None,
             "weight_g": est_weight,
             "confidence": round(confidence, 3),
             "reasons": reasons,
@@ -135,7 +135,7 @@ class GradingEngine:
                 "total_count": 0,
                 "auto_graded_count": 0,
                 "needs_check_count": 0,
-                "summary_status_text": "0 of 0 auto-graded • 0 need your check",
+                "summary_status_text": "No onions detected — check photo and retake",
                 "total_weight_g": 0.0,
                 "grade_breakdown_count": {"GRADE_A": 0, "URS": 0, "REJECTED": 0},
                 "grade_breakdown_weight": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0},
@@ -145,7 +145,7 @@ class GradingEngine:
                 "defect_breakdown_count": {},
                 "size_distribution": {"<35mm": 0, "35-45mm": 0, "45-60mm": 0, "60-75mm": 0, ">75mm": 0, "unmeasured": 0},
                 "average_diameter_mm": None,
-                "lot_verdict": "REJECTED",
+                "lot_verdict": "NO_ONIONS_DETECTED",
                 "onions": [],
             }
 
@@ -219,17 +219,26 @@ class GradingEngine:
         measured_dias = [o["diameter_mm"] for o in graded_onions if o["diameter_mm"] is not None]
         avg_diameter = round(sum(measured_dias) / len(measured_dias), 1) if len(measured_dias) > 0 else None
 
-        if auto_count > 0:
-            if pct_count["REJECTED"] > 15.0:
-                lot_verdict = "REJECTED"
-            elif pct_count["URS"] > 25.0:
-                lot_verdict = "URS"
-            else:
-                lot_verdict = "GRADE_A"
-        elif provisional_pct.get("REJECTED", 0.0) > 15.0:
-            lot_verdict = "REJECTED"
+        # Rejection & URS thresholds loaded dynamically from grading_rules.json
+        max_rejected_pct = float(self.lot_tolerances.get("max_rejected_pct_for_lot_acceptance", 15.0))
+        max_urs_pct = float(self.lot_tolerances.get("max_urs_pct_for_grade_a_lot", 25.0))
+
+        if total_count == 0:
+            lot_verdict = "NO_ONIONS_DETECTED"
+        elif auto_count == 0:
+            lot_verdict = f"PENDING_REVIEW ({needs_check_count} pending review)"
         else:
-            lot_verdict = "NEEDS_MANUAL_CHECK"
+            if pct_count["REJECTED"] > max_rejected_pct:
+                base_verdict = "REJECTED"
+            elif pct_count["URS"] > max_urs_pct:
+                base_verdict = "URS"
+            else:
+                base_verdict = "GRADE_A"
+
+            if needs_check_count > 0:
+                lot_verdict = f"{base_verdict} (provisional — {needs_check_count} pending review)"
+            else:
+                lot_verdict = base_verdict
 
         summary_status = f"{auto_count} of {total_count} auto-graded • {needs_check_count} need your check"
 

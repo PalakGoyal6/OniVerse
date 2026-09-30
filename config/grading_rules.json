@@ -94,6 +94,8 @@
     "unmatched_penalty_score": 100.0
   },
   "lot_tolerances": {
+    "max_rejected_pct_for_lot_acceptance": 15.0,
+    "max_urs_pct_for_grade_a_lot": 25.0,
     "max_urs_weight_pct_for_grade_a_lot": 10.0,
     "max_defective_weight_pct_for_procurement": 5.0,
     "max_extraneous_matter_pct": 1.0

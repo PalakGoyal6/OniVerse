@@ -696,6 +696,10 @@ export const AiTestingLabPage: React.FC = () => {
                             ? 'GRADE A LOT'
                             : analysisResult.summary.lot_verdict === 'URS'
                             ? 'UNDER-SIZED (URS) LOT'
+                            : analysisResult.summary.lot_verdict === 'PENDING_REVIEW'
+                            ? 'LOT PENDING OFFICER REVIEW'
+                            : analysisResult.summary.lot_verdict === 'NO_ONIONS_DETECTED'
+                            ? 'NO ONIONS DETECTED'
                             : 'REJECTED LOT'}
                         </h2>
                         <div className="text-xs text-slate-400 font-mono mt-0.5">

@@ -52,6 +52,7 @@ class YOLOSegmentor:
         self.conf_threshold = conf_threshold
         self.iou_threshold = 0.60
         self.model = None
+        self.last_cluster_warning = None
 
         if model_path is None:
             candidates = [
@@ -77,6 +78,7 @@ class YOLOSegmentor:
 
     def infer(self, image: np.ndarray) -> List[SegmentResult]:
         """Run YOLO inference on image array with calibrated confidence & NMS IoU filtering."""
+        self.last_cluster_warning = None
         if image is None or image.size == 0:
             return []
 
@@ -119,8 +121,9 @@ class YOLOSegmentor:
                     box_area = bw * bh
 
                     # Physical plausibility checks:
-                    # 1. Reject giant bounding boxes (> 40% of total image area)
+                    # 1. Reject giant bounding boxes (> 40% of total image area) and set clear user warning
                     if (box_area / total_img_area) > 0.40:
+                        self.last_cluster_warning = "Onions too close together or too close to the camera — spread on the sheet and retake."
                         continue
 
                     # 2. Reject extreme non-bulb aspect ratios

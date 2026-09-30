@@ -64,6 +64,10 @@ class OnionLotProcessor:
         quality = self.marker_detector.validate_camera_quality(image)
         H_px_to_mm, marker_corners, marker_meta = self.marker_detector.detect_and_compute_homography(image)
         marker_found = H_px_to_mm is not None
+        if marker_meta is None:
+            marker_meta = {}
+        if marker_corners is not None:
+            marker_meta["corners_px"] = marker_corners.tolist()
 
         segments = self.segmentor.infer(image)
         onions_raw = []
@@ -100,11 +104,14 @@ class OnionLotProcessor:
                 "marker_detected": marker_found,
             })
 
+        cluster_warning = getattr(self.segmentor, "last_cluster_warning", None)
+
         return {
             "view": view_name,
             "camera_quality": quality,
             "marker_detected": marker_found,
             "marker_meta": marker_meta if marker_meta else {"marker_found": False, "reason": "No ArUco marker detected"},
+            "cluster_warning": cluster_warning,
             "onions": onions_raw,
         }
 
@@ -150,6 +157,11 @@ class OnionLotProcessor:
             sample_weight_kg=sample_weight_kg,
             total_lot_weight_kg=total_lot_weight_kg,
         )
+
+        cluster_warning = front_res.get("cluster_warning")
+        if cluster_warning and len(fused_onions) == 0:
+            graded_lot["summary_status_text"] = cluster_warning
+            graded_lot["cluster_warning"] = cluster_warning
 
         return {
             "front_view_meta": {
