@@ -57,13 +57,13 @@ export const RulesEditorPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold px-3 py-1 bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-lg">
+          <span className="text-xs font-mono font-bold px-3 py-1 bg-purple-100 border border-purple-200 text-purple-900 rounded-lg">
             Active Rules: v{version}
           </span>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold text-xs shadow-sm transition"
           >
             {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             <span>Deploy Rule Update</span>
@@ -72,8 +72,8 @@ export const RulesEditorPage: React.FC = () => {
       </div>
 
       {saveSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" />
+        <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-300 text-purple-900 text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-purple-800" />
           <span>Rules updated and broadcasted to 6 APMC mandis successfully.</span>
         </div>
       )}
@@ -96,7 +96,7 @@ export const RulesEditorPage: React.FC = () => {
                 step="0.5"
                 value={gradeAMin}
                 onChange={(e) => setGradeAMin(parseFloat(e.target.value))}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-purple-600"
               />
             </div>
             <div>

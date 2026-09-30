@@ -103,8 +103,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <div className="flex items-center gap-3">
             {/* Language Selector */}
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 shadow-sm">
-              <Globe className="w-3.5 h-3.5 text-emerald-800 mr-1.5" />
+            <div className="flex items-center bg-purple-50/60 border border-purple-200/80 rounded-xl px-2 py-1 shadow-sm">
+              <Globe className="w-3.5 h-3.5 text-purple-800 mr-1.5" />
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as any)}
@@ -118,14 +118,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <button
               onClick={onOpenVerify}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-purple-900 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 transition"
             >
-              <Search className="w-3.5 h-3.5 text-emerald-700" />
+              <Search className="w-3.5 h-3.5 text-purple-800" />
               <span>Verify QR Report</span>
             </button>
             <button
               onClick={onEnterDashboard}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-800 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/10 transition"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-purple-900 hover:bg-purple-800 text-white shadow-md shadow-purple-950/20 transition"
             >
               <span>Supervisor Hub</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -136,14 +136,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Hero Section */}
       <section className="py-20 px-6 max-w-7xl mx-auto text-center relative">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-6 border border-emerald-200">
-          <Sparkles className="w-4 h-4 text-emerald-700" />
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-950 text-xs font-bold mb-6 border border-purple-200">
+          <Sparkles className="w-4 h-4 text-purple-800" />
           <span>Smart India Hackathon 2026 • Official Agri-Tech Solution</span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 max-w-4xl mx-auto leading-tight">
           Make Onion Quality Assessment{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-800 via-emerald-700 to-rose-900">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-950 via-purple-800 to-fuchsia-800">
             Objective, Transparent &amp; Tamper-Proof
           </span>
         </h1>
@@ -157,16 +157,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={onEnterDashboard}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-900/20 transition transform hover:-translate-y-0.5"
+            className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold text-sm shadow-lg shadow-purple-950/20 transition transform hover:-translate-y-0.5"
           >
             <span>Launch Supervisor Console</span>
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
             onClick={onOpenVerify}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm border border-slate-300 shadow-sm transition"
+            className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-white hover:bg-purple-50 text-slate-800 hover:text-purple-900 font-bold text-sm border border-slate-300 hover:border-purple-200 shadow-sm transition"
           >
-            <ShieldCheck className="w-4 h-4 text-emerald-700" />
+            <ShieldCheck className="w-4 h-4 text-purple-800" />
             <span>Public Report Verifier</span>
           </button>
         </div>
@@ -180,7 +180,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 key={idx}
                 className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition"
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-900 flex items-center justify-center mb-4">
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="text-2xl font-black text-slate-900">{p.value}</div>
@@ -229,25 +229,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </ul>
             </div>
 
-            <div className="bg-emerald-50/60 p-8 rounded-2xl border border-emerald-200/80">
-              <div className="inline-block px-3 py-1 rounded-full bg-emerald-200 text-emerald-900 text-xs font-bold mb-4">
+            <div className="bg-purple-50/60 p-8 rounded-2xl border border-purple-200/80">
+              <div className="inline-block px-3 py-1 rounded-full bg-purple-200 text-purple-950 text-xs font-bold mb-4">
                 AGRI-GRADE AI Solution
               </div>
               <ul className="space-y-3.5 text-sm text-slate-700">
                 <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-purple-800 shrink-0" />
                   <span><strong>Physical Millimeter Precision:</strong> ArUco homography sizes every bulb with 1.42 mm accuracy.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-purple-800 shrink-0" />
                   <span><strong>Hungarian Two-View Fusion:</strong> Correlates top &amp; underside photos to catch 100% of concealed basal rot.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-purple-800 shrink-0" />
                   <span><strong>Explainable AGMARK Decision:</strong> Every single onion provides a human-readable justification for its grade.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-purple-800 shrink-0" />
                   <span><strong>Tamper-Proof Verification:</strong> Canonical SHA-256 hashing &amp; Ed25519 signatures with QR scanning.</span>
                 </li>
               </ul>
@@ -259,7 +259,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* How It Works Timeline */}
       <section className="py-20 px-6 max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="text-xs font-bold uppercase tracking-widest text-emerald-800 mb-2">
+          <div className="text-xs font-bold uppercase tracking-widest text-purple-900 mb-2">
             Execution Architecture
           </div>
           <h2 className="text-3xl font-extrabold text-slate-900">
@@ -273,12 +273,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             return (
               <div
                 key={idx}
-                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-emerald-600 transition"
+                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-purple-600 transition"
               >
-                <div className="text-4xl font-black text-slate-100 absolute top-3 right-4 select-none group-hover:text-emerald-100 transition">
+                <div className="text-4xl font-black text-slate-100 absolute top-3 right-4 select-none group-hover:text-purple-100 transition">
                   {s.num}
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-4 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-900 flex items-center justify-center mb-4 relative z-10">
                   <Icon className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-base text-slate-900 relative z-10 mb-2">
@@ -305,7 +305,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="mt-8 flex justify-center gap-4">
             <button
               onClick={onEnterDashboard}
-              className="px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-sm text-white shadow-lg shadow-emerald-700/30 transition"
+              className="px-8 py-3 rounded-xl bg-purple-800 hover:bg-purple-700 font-bold text-sm text-white shadow-lg shadow-purple-900/40 transition"
             >
               Open Supervisor Dashboard
             </button>

@@ -15,7 +15,7 @@ export const OnionLogo: React.FC<OnionLogoProps> = ({ size = 'md', showSubtext =
   return (
     <div className="flex items-center gap-3">
       <div
-        className={`${iconSizes[size]} rounded-xl bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-900 flex items-center justify-center text-white shadow-md shadow-emerald-900/20 shrink-0 border border-emerald-600/30`}
+        className={`${iconSizes[size]} rounded-xl bg-gradient-to-br from-purple-950 via-purple-900 to-fuchsia-900 flex items-center justify-center text-white shadow-md shadow-purple-950/30 shrink-0 border border-purple-700/40`}
       >
         {/* Crisp vector onion icon */}
         <svg
@@ -27,7 +27,7 @@ export const OnionLogo: React.FC<OnionLogoProps> = ({ size = 'md', showSubtext =
           {/* Top sprout */}
           <path
             d="M16 2V7M16 2C16 2 13 4 13 7M16 2C16 2 19 4 19 7"
-            stroke="#bbf7d0"
+            stroke="#fbcfe8"
             strokeWidth="2"
             strokeLinecap="round"
           />
@@ -59,7 +59,7 @@ export const OnionLogo: React.FC<OnionLogoProps> = ({ size = 'md', showSubtext =
           <span className="font-extrabold text-sm tracking-tight text-slate-900">
             AGRI-GRADE AI
           </span>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200">
             MANDI 2.0
           </span>
         </div>

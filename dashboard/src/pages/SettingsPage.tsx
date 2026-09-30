@@ -38,7 +38,7 @@ export const SettingsPage: React.FC = () => {
 
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+          className="flex items-center gap-2 px-5 py-2.5 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-sm transition"
         >
           {isSaved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           <span>{isSaved ? 'Settings Saved' : 'Save Changes'}</span>
@@ -48,9 +48,9 @@ export const SettingsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: AI Model Info Card (17.13) */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="panel-card p-6 border-emerald-200 bg-gradient-to-b from-emerald-50/40 to-white">
-            <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm mb-4">
-              <Cpu className="w-5 h-5 text-emerald-700" />
+          <div className="panel-card p-6 border-purple-200/80 bg-gradient-to-b from-purple-50/40 via-fuchsia-50/20 to-white">
+            <div className="flex items-center gap-2 text-purple-900 font-bold text-sm mb-4">
+              <Cpu className="w-5 h-5 text-purple-800" />
               <span>Active AI Model Information</span>
             </div>
 
@@ -85,19 +85,19 @@ export const SettingsPage: React.FC = () => {
 
               <div className="p-3 bg-white rounded-xl border border-slate-200">
                 <span className="text-slate-400 block text-[11px]">Grading Rules Standard</span>
-                <span className="font-bold text-emerald-700">AGMARK-Aligned (Configurable defaults)</span>
+                <span className="font-bold text-purple-900">AGMARK-Aligned (Configurable defaults)</span>
               </div>
             </div>
 
             {/* Real Evaluation Accuracy */}
-            <div className="mt-5 pt-4 border-t border-emerald-200/60">
+            <div className="mt-5 pt-4 border-t border-purple-200/60">
               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-2">
                 Lab Evaluation Benchmark
               </span>
               <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="p-2.5 bg-emerald-100/60 rounded-lg border border-emerald-200">
-                  <div className="text-lg font-black text-emerald-900">1.42 mm</div>
-                  <div className="text-[10px] text-emerald-800 font-medium">Sizing MAE (Marker)</div>
+                <div className="p-2.5 bg-purple-100/60 rounded-lg border border-purple-200">
+                  <div className="text-lg font-black text-purple-950">1.42 mm</div>
+                  <div className="text-[10px] text-purple-900 font-medium">Sizing MAE (Marker)</div>
                 </div>
                 <div className="p-2.5 bg-emerald-100/60 rounded-lg border border-emerald-200">
                   <div className="text-lg font-black text-emerald-900">~71.5%</div>
@@ -108,8 +108,8 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           {/* Privacy Note */}
-          <div className="panel-card p-5 text-xs text-slate-600 flex items-start gap-3 bg-slate-50">
-            <Shield className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+          <div className="panel-card p-5 text-xs text-slate-600 flex items-start gap-3 bg-purple-50/40 border-purple-200/60">
+            <Shield className="w-5 h-5 text-purple-800 shrink-0 mt-0.5" />
             <div>
               <strong className="text-slate-900 block mb-1">Security &amp; Audit Trail</strong>
               Tamper-evident audit log with Ed25519 digital signatures and canonical SHA-256 hashes. Any unauthorized modification to report numbers becomes immediately detectable.
@@ -123,10 +123,10 @@ export const SettingsPage: React.FC = () => {
           <div className="panel-card p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                <Sliders className="w-4 h-4 text-emerald-700" />
+                <Sliders className="w-4 h-4 text-purple-800" />
                 <span>AI Confidence Threshold (Manual Check Trigger)</span>
               </div>
-              <span className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-black text-sm">
+              <span className="px-3 py-1 rounded-lg bg-purple-100 text-purple-900 font-black text-sm">
                 {confidenceThreshold}%
               </span>
             </div>
@@ -143,7 +143,7 @@ export const SettingsPage: React.FC = () => {
               step="5"
               value={confidenceThreshold}
               onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
-              className="w-full accent-emerald-700 h-2 bg-slate-200 rounded-lg cursor-pointer"
+              className="w-full accent-purple-800 h-2 bg-slate-200 rounded-lg cursor-pointer"
             />
 
             <div className="flex justify-between text-[11px] text-slate-400 mt-2 font-medium">
@@ -156,7 +156,7 @@ export const SettingsPage: React.FC = () => {
           {/* Mandi Centre & Operational Settings */}
           <div className="panel-card p-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Database className="w-4 h-4 text-emerald-700" />
+              <Database className="w-4 h-4 text-purple-800" />
               <span>APMC Centre &amp; Supervisor Station</span>
             </h3>
 
@@ -168,7 +168,7 @@ export const SettingsPage: React.FC = () => {
                 <select
                   value={selectedMandi}
                   onChange={(e) => setSelectedMandi(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-emerald-600"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-purple-600"
                 >
                   <option value="Lasalgaon">Lasalgaon APMC (Nashik)</option>
                   <option value="Pimpalgaon">Pimpalgaon APMC</option>
@@ -185,7 +185,7 @@ export const SettingsPage: React.FC = () => {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-emerald-600"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-purple-600"
                 >
                   <option value="en">English (Official)</option>
                   <option value="hi">Hindi (हिंदी)</option>
@@ -198,7 +198,7 @@ export const SettingsPage: React.FC = () => {
           {/* Sync & Offline Policy */}
           <div className="panel-card p-6">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-              <RefreshCw className="w-4 h-4 text-emerald-700" />
+              <RefreshCw className="w-4 h-4 text-purple-800" />
               <span>Offline Sync &amp; Over-The-Air Model Distribution</span>
             </h3>
 
@@ -207,7 +207,7 @@ export const SettingsPage: React.FC = () => {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="w-4 h-4 accent-emerald-700 rounded"
+                  className="w-4 h-4 accent-purple-800 rounded"
                 />
                 <div>
                   <span className="font-bold text-slate-800 block">Automatic OTA Model Updates</span>
@@ -221,7 +221,7 @@ export const SettingsPage: React.FC = () => {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="w-4 h-4 accent-emerald-700 rounded"
+                  className="w-4 h-4 accent-purple-800 rounded"
                 />
                 <div>
                   <span className="font-bold text-slate-800 block">Immutable Audit Log Mirroring</span>

@@ -133,8 +133,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               onClick={() => setTimeFilter(filterKey)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
                 timeFilter === filterKey
-                  ? 'bg-emerald-800 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-purple-900 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-purple-950 hover:bg-purple-50/70'
               }`}
             >
               {filterKey === 'today'
@@ -150,14 +150,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       </div>
 
       {/* Dynamic Data-Driven Insight Card */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200 shadow-sm flex items-start gap-3.5">
-        <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 shrink-0 mt-0.5">
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-fuchsia-50/50 to-white border border-purple-200/80 shadow-sm flex items-start gap-3.5">
+        <div className="p-2.5 rounded-xl bg-purple-100 text-purple-900 shrink-0 mt-0.5">
           <Sparkles className="w-5 h-5" />
         </div>
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+          <div className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
             <span>{t('systemSummaryAI')}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-700 animate-pulse"></span>
           </div>
           <h3 className="font-bold text-sm text-slate-900 mt-0.5">{dynamicInsight.title}</h3>
           <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{dynamicInsight.desc}</p>
@@ -172,7 +172,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               {t('totalGradedToday')}
             </span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-800">
+            <div className="p-2 rounded-xl bg-purple-50 text-purple-900">
               <Layers className="w-4 h-4" />
             </div>
           </div>
@@ -392,7 +392,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 return (
                   <tr key={i} className="hover:bg-slate-50/80 transition">
                     <td className="py-3.5 font-bold text-slate-900 flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-700" />
+                      <MapPin className="w-3.5 h-3.5 text-purple-800" />
                       <span>{c.centre_name}</span>
                     </td>
                     <td className="py-3.5 font-medium text-slate-700">{c.lots_count} lots</td>

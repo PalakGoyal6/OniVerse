@@ -74,7 +74,7 @@ export const AuditLogPage: React.FC = () => {
         <button
           onClick={handleVerify}
           disabled={isVerifying}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold text-xs shadow-sm transition"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isVerifying ? 'animate-spin' : ''}`} />
           <span>Verify Entire Hash Chain</span>
@@ -82,18 +82,18 @@ export const AuditLogPage: React.FC = () => {
       </div>
 
       {/* Chain Status Card */}
-      <div className="panel-card p-6 bg-emerald-50/50 border-emerald-200">
+      <div className="panel-card p-6 bg-purple-50/50 border-purple-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800">
-              <CheckCircle2 className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-900">
+              <CheckCircle2 className="w-6 h-6 text-purple-800" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-slate-900 text-sm">
                   CRYPTOGRAPHIC LEDGER INTACT &amp; UNBROKEN
                 </h3>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-[10px] font-black uppercase">
                   Zero Tampering Detected
                 </span>
               </div>
