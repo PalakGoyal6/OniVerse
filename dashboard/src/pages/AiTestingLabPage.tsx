@@ -643,202 +643,236 @@ export const AiTestingLabPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-4">
           {analysisResult ? (
             <div className="space-y-4">
-              {/* Verdict Summary Card */}
-              <div className="panel-card p-5 bg-slate-900 text-white">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                      INSPECTION VERDICT • {analysisResult.lot_id}
+              {analysisResult.summary.total_onions === 0 ? (
+                /* ZERO ONIONS DETECTED - REAL MODEL FEEDBACK */
+                <div className="panel-card p-8 text-center space-y-4 bg-slate-900 text-white">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto">
+                    <AlertTriangle className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase font-bold text-amber-400 tracking-wider">
+                      YOLO11n Real-Time Vision Pipeline
                     </span>
-                    <h2 className="text-xl font-black mt-0.5">
-                      {analysisResult.summary.lot_verdict === 'GRADE_A'
-                        ? 'GRADE A LOT'
-                        : analysisResult.summary.lot_verdict === 'URS'
-                        ? 'UNDER-SIZED (URS) LOT'
-                        : 'REJECTED LOT'}
-                    </h2>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">
-                      Model: {analysisResult.model_version}
-                    </div>
+                    <h3 className="text-lg font-black text-white">
+                      {language === 'hi'
+                        ? 'छवि में कोई प्याज नहीं मिला'
+                        : language === 'mr'
+                        ? 'प्रतिमेमध्ये कांदा आढळला नाही'
+                        : 'No Onion Bulbs Detected in Image'}
+                    </h3>
+                    <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+                      {language === 'hi'
+                        ? 'YOLO11n एआई मॉडल ने इस फोटो को प्रोसेस किया और 0 प्याज बल्ब पहचाने। कृपया कैमरा को प्याज की ट्रे या बल्ब के सामने रखें।'
+                        : language === 'mr'
+                        ? 'YOLO11n मॉडेलने या फोटोचे विश्लेषण केले आणि ० कांदे आढळले. कृपया कॅमेरा कांद्याच्या ट्रेवर धरा.'
+                        : 'The YOLO11n object detector analyzed this photo and found 0 onion bulbs. Point your camera at an actual onion tray or bulbs to run grading.'}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">
-                        Selective Prediction
+                  {/* Frame diagnostics */}
+                  <div className="inline-flex flex-wrap items-center justify-center gap-3 bg-slate-800/90 px-4 py-2 rounded-xl text-[11px] font-mono text-slate-300 border border-slate-700">
+                    <span>Model: {analysisResult.model_version}</span>
+                    <span>•</span>
+                    <span>ArUco Marker: {analysisResult.front_view_meta?.marker_detected ? '✅ Detected' : '❌ Not Detected'}</span>
+                    <span>•</span>
+                    <span>Bulbs Found: 0</span>
+                  </div>
+                </div>
+              ) : (
+                /* ONIONS DETECTED - DISPLAY REAL INSTANCES & AGMARK STATS */
+                <>
+                  {/* Verdict Summary Card */}
+                  <div className="panel-card p-5 bg-slate-900 text-white">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                          LIVE YOLO11n INFERENCE • {analysisResult.lot_id}
+                        </span>
+                        <h2 className="text-xl font-black mt-0.5">
+                          {analysisResult.summary.lot_verdict === 'GRADE_A'
+                            ? 'GRADE A LOT'
+                            : analysisResult.summary.lot_verdict === 'URS'
+                            ? 'UNDER-SIZED (URS) LOT'
+                            : 'REJECTED LOT'}
+                        </h2>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5">
+                          Detected: {analysisResult.summary.total_onions} Bulbs • Model: {analysisResult.model_version}
+                        </div>
                       </div>
-                      <div className="text-xs font-bold text-emerald-400">
-                        {analysisResult.summary.auto_graded_count} of{' '}
-                        {analysisResult.summary.total_onions} Auto-Graded
-                      </div>
-                    </div>
 
-                    {!analysisResult.stored_in_database ? (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const formData = new FormData();
-                            if (selectedFile) formData.append('front_image', selectedFile);
-                            formData.append('save_to_db', 'true');
-                            formData.append('farmer_name', 'Live Sample Farmer');
-                            formData.append('centre_name', 'Lasalgaon Mandi');
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-[10px] uppercase font-bold text-slate-400">
+                            Selective Prediction
+                          </div>
+                          <div className="text-xs font-bold text-emerald-400">
+                            {analysisResult.summary.auto_graded_count} of{' '}
+                            {analysisResult.summary.total_onions} Auto-Graded
+                          </div>
+                        </div>
 
-                            const res = await fetch(
-                              'http://localhost:8000/reports/analyze-image',
-                              {
-                                method: 'POST',
-                                body: formData,
+                        {!analysisResult.stored_in_database ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const formData = new FormData();
+                                if (selectedFile) formData.append('front_image', selectedFile);
+                                formData.append('save_to_db', 'true');
+                                formData.append('farmer_name', 'Live Sample Farmer');
+                                formData.append('centre_name', 'Lasalgaon Mandi');
+
+                                const res = await fetch(
+                                  'http://localhost:8000/reports/analyze-image',
+                                  {
+                                    method: 'POST',
+                                    body: formData,
+                                  }
+                                );
+                                if (res.ok) {
+                                  const d = await res.json();
+                                  setAnalysisResult({
+                                    ...analysisResult,
+                                    stored_in_database: true,
+                                    saved_report_id:
+                                      d.saved_report_id ||
+                                      `KP-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+                                  });
+                                }
+                              } catch {
+                                setAnalysisResult({
+                                  ...analysisResult,
+                                  stored_in_database: true,
+                                  saved_report_id: `KP-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+                                });
                               }
-                            );
-                            if (res.ok) {
-                              const d = await res.json();
-                              setAnalysisResult({
-                                ...analysisResult,
-                                stored_in_database: true,
-                                saved_report_id:
-                                  d.saved_report_id ||
-                                  `KP-2026-${Math.floor(100000 + Math.random() * 900000)}`,
-                              });
-                            } else {
-                              setAnalysisResult({
-                                ...analysisResult,
-                                stored_in_database: true,
-                                saved_report_id: `KP-2026-${Math.floor(100000 + Math.random() * 900000)}`,
-                              });
-                            }
-                          } catch {
-                            setAnalysisResult({
-                              ...analysisResult,
-                              stored_in_database: true,
-                              saved_report_id: `KP-2026-${Math.floor(100000 + Math.random() * 900000)}`,
-                            });
-                          }
-                        }}
-                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>Save to DB</span>
-                      </button>
-                    ) : (
-                      <div className="px-3 py-1.5 bg-emerald-950/80 border border-emerald-500 text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Saved: {analysisResult.saved_report_id}</span>
+                            }}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Save to DB</span>
+                          </button>
+                        ) : (
+                          <div className="px-3 py-1.5 bg-emerald-950/80 border border-emerald-500 text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Saved: {analysisResult.saved_report_id}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Grade Split Pills */}
-                <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800 text-center">
-                  <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                    <div className="text-[11px] font-bold text-emerald-400">Grade A</div>
-                    <div className="text-2xl font-black text-white mt-0.5">
-                      {analysisResult.summary.grade_a_pct}%
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                    <div className="text-[11px] font-bold text-amber-400">
-                      Under-Sized (35–45mm)
-                    </div>
-                    <div className="text-2xl font-black text-white mt-0.5">
-                      {analysisResult.summary.urs_pct}%
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                    <div className="text-[11px] font-bold text-rose-400">
-                      Rejected / Defective
-                    </div>
-                    <div className="text-2xl font-black text-white mt-0.5">
-                      {analysisResult.summary.rejected_pct}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Storage Suitability Card */}
-              <div className="panel-card p-4 flex items-start gap-3.5">
-                <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 shrink-0">
-                  <Boxes className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 uppercase">
-                      Storage Suitability: {analysisResult.storage_risk.band} RISK (Score:{' '}
-                      {analysisResult.storage_risk.score}/100)
-                    </span>
-                    <span className="text-[10px] text-slate-500 italic">Indicative score</span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {analysisResult.storage_risk.recommendation}
-                  </p>
-                </div>
-              </div>
-
-              {/* Detected Bulbs */}
-              <div className="panel-card p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Detected Instances ({analysisResult.onions.length} Bulbs)
-                  </h3>
-                  <span className="text-[11px] text-slate-400">
-                    Click any bulb for sizing &amp; rule reasons
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-80 overflow-y-auto pr-1">
-                  {analysisResult.onions.map((o: any) => {
-                    const isDefect = o.class !== 'healthy';
-                    return (
-                      <button
-                        key={o.onion_id}
-                        onClick={() => setSelectedOnion(o)}
-                        className={`p-3 rounded-xl border text-left transition ${
-                          selectedOnion?.onion_id === o.onion_id
-                            ? 'ring-2 ring-emerald-600 bg-emerald-50/40'
-                            : 'bg-slate-50 hover:bg-white border-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-mono font-bold text-slate-700">
-                            {o.onion_id}
-                          </span>
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              o.grade === 'GRADE_A'
-                                ? 'bg-emerald-500'
-                                : o.grade === 'URS'
-                                ? 'bg-amber-500'
-                                : 'bg-rose-500'
-                            }`}
-                          />
+                    {/* Grade Split Pills */}
+                    <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800 text-center">
+                      <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                        <div className="text-[11px] font-bold text-emerald-400">Grade A</div>
+                        <div className="text-2xl font-black text-white mt-0.5">
+                          {analysisResult.summary.grade_a_pct}%
                         </div>
-
-                        <div className="mt-1.5 flex items-baseline justify-between">
-                          <span className="text-sm font-black text-slate-900">
-                            {o.diameter_mm} mm
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-500">
-                            {o.estimated_weight_g} g
-                          </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                        <div className="text-[11px] font-bold text-amber-400">
+                          Under-Sized (35–45mm)
                         </div>
+                        <div className="text-2xl font-black text-white mt-0.5">
+                          {analysisResult.summary.urs_pct}%
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                        <div className="text-[11px] font-bold text-rose-400">
+                          Rejected / Defective
+                        </div>
+                        <div className="text-2xl font-black text-white mt-0.5">
+                          {analysisResult.summary.rejected_pct}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                        <div className="mt-1 flex items-center justify-between text-[10px]">
-                          <span
-                            className={`font-bold capitalize ${
-                              isDefect ? 'text-rose-600' : 'text-emerald-700'
+                  {/* Storage Suitability Card */}
+                  <div className="panel-card p-4 flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 shrink-0">
+                      <Boxes className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 uppercase">
+                          Storage Suitability: {analysisResult.storage_risk.band} RISK (Score:{' '}
+                          {analysisResult.storage_risk.score}/100)
+                        </span>
+                        <span className="text-[10px] text-slate-500 italic">Indicative score</span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        {analysisResult.storage_risk.recommendation}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Detected Bulbs */}
+                  <div className="panel-card p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Detected Instances ({analysisResult.onions.length} Bulbs)
+                      </h3>
+                      <span className="text-[11px] text-slate-400">
+                        Click any bulb for sizing &amp; rule reasons
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-80 overflow-y-auto pr-1">
+                      {analysisResult.onions.map((o: any) => {
+                        const isDefect = o.class !== 'healthy' && o.class !== 'Healthy';
+                        return (
+                          <button
+                            key={o.onion_id}
+                            onClick={() => setSelectedOnion(o)}
+                            className={`p-3 rounded-xl border text-left transition ${
+                              selectedOnion?.onion_id === o.onion_id
+                                ? 'ring-2 ring-emerald-600 bg-emerald-50/40'
+                                : 'bg-slate-50 hover:bg-white border-slate-200'
                             }`}
                           >
-                            {o.class.replace('_', ' ')}
-                          </span>
-                          <span className="font-mono text-slate-400">
-                            {(o.confidence * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-mono font-bold text-slate-700">
+                                {o.onion_id}
+                              </span>
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  o.grade === 'GRADE_A'
+                                    ? 'bg-emerald-500'
+                                    : o.grade === 'URS'
+                                    ? 'bg-amber-500'
+                                    : 'bg-rose-500'
+                                }`}
+                              />
+                            </div>
+
+                            <div className="mt-1.5 flex items-baseline justify-between">
+                              <span className="text-sm font-black text-slate-900">
+                                {o.diameter_mm} mm
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-500">
+                                {o.estimated_weight_g} g
+                              </span>
+                            </div>
+
+                            <div className="mt-1 flex items-center justify-between text-[10px]">
+                              <span
+                                className={`font-bold capitalize ${
+                                  isDefect ? 'text-rose-600' : 'text-emerald-700'
+                                }`}
+                              >
+                                {o.class.replace('_', ' ')}
+                              </span>
+                              <span className="font-mono text-slate-400">
+                                {(o.confidence * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Selected Bulb Details */}
               {selectedOnion && (
