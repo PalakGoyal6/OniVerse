@@ -48,7 +48,7 @@ class SegmentResult:
 
 
 class YOLOSegmentor:
-    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.45):
+    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.22):
         self.conf_threshold = conf_threshold
         self.model = None
 
@@ -82,8 +82,8 @@ class YOLOSegmentor:
         total_img_area = float(img_h * img_w)
 
         if self.model is not None:
-            # Use robust confidence threshold 0.45 and IoU NMS 0.45 to eliminate background noise
-            results = self.model(image, conf=self.conf_threshold, iou=0.45, verbose=False)
+            # Sensitive confidence threshold 0.22 and IoU NMS 0.40
+            results = self.model(image, conf=self.conf_threshold, iou=0.40, verbose=False)
             output: List[SegmentResult] = []
 
             if len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -117,13 +117,13 @@ class YOLOSegmentor:
                     box_area = bw * bh
 
                     # Physical plausibility checks:
-                    # 1. Reject detections covering more than 35% of total image (e.g. human face/torso)
-                    if (box_area / total_img_area) > 0.35:
+                    # 1. Reject giant bounding boxes (e.g. human torso or whole room background > 30% of view)
+                    if (box_area / total_img_area) > 0.30:
                         continue
 
-                    # 2. Reject extreme aspect ratios (onions are generally round/oval)
+                    # 2. Reject extreme aspect ratios
                     aspect = bw / bh
-                    if aspect < 0.40 or aspect > 2.50:
+                    if aspect < 0.45 or aspect > 2.30:
                         continue
 
                     raw_name = model_names.get(c_id, CLASSES[c_id] if c_id < len(CLASSES) else f"class_{c_id}")
@@ -145,7 +145,6 @@ class YOLOSegmentor:
                     output.append(SegmentResult(c_id, c_name, conf, xyxy, contour_px))
                 return output
 
-            # When trained YOLO model runs and finds 0 onions, return exactly []
             return []
 
         return []
