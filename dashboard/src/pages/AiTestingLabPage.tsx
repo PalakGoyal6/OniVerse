@@ -215,6 +215,9 @@ export const AiTestingLabPage: React.FC = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+
+      // Automatically run inference on selected photo
+      executeInference(file);
     }
   };
 

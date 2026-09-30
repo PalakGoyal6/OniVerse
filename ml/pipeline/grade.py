@@ -7,13 +7,23 @@ from typing import List, Dict, Any, Optional
 
 class GradingEngine:
     def __init__(self, config_path: Optional[str] = None):
+        root = Path(__file__).resolve().parents[2]
         if config_path is None:
-            root = Path(__file__).resolve().parents[2]
             config_path = str(root / "config" / "grading_rules.json")
 
         self.config_path = config_path
         with open(config_path, "r", encoding="utf-8") as f:
             self.rules = json.load(f)
+
+        conf_file = root / "config" / "confidence_thresholds.json"
+        self.conf_thresholds = {}
+        if conf_file.exists():
+            try:
+                with open(conf_file, "r", encoding="utf-8") as f:
+                    c_data = json.load(f)
+                    self.conf_thresholds = c_data.get("confidence_thresholds", {})
+            except Exception:
+                pass
 
         self.version = self.rules.get("version", "1.0.0")
         self.grades_config = self.rules.get("grades", {})
@@ -38,13 +48,21 @@ class GradingEngine:
         reasons = []
 
         # 1. Determine physical AGMARK grade based on defect and real measured size
-        if class_name_lower in ["rotten", "damaged", "sprouted", "mould"]:
+        if class_name_lower in ["rotten", "mould", "mold"]:
             physical_grade = "REJECTED"
-            defect_desc = self.defect_labels.get(raw_class_name, raw_class_name)
-            if has_size:
-                reasons.append(f"Severe defect: {defect_desc} ({diameter:.1f}mm)")
-            else:
-                reasons.append(f"Severe defect: {defect_desc} (Size not measured - no ArUco marker)")
+            defect_desc = self.defect_labels.get(raw_class_name, "Rot / Fungal Mould")
+            size_txt = f" ({diameter:.1f}mm)" if has_size else " (Size unmeasured)"
+            reasons.append(f"Severe defect: {defect_desc}{size_txt}")
+        elif class_name_lower in ["damaged", "mechanical_damage"]:
+            physical_grade = "REJECTED"
+            defect_desc = self.defect_labels.get(raw_class_name, "Mechanical Damage")
+            size_txt = f" ({diameter:.1f}mm)" if has_size else " (Size unmeasured)"
+            reasons.append(f"Defect: {defect_desc}{size_txt}")
+        elif class_name_lower in ["sprouted", "sprouting"]:
+            physical_grade = "REJECTED"
+            defect_desc = self.defect_labels.get(raw_class_name, "Apical Sprouting")
+            size_txt = f" ({diameter:.1f}mm)" if has_size else " (Size unmeasured)"
+            reasons.append(f"Defect: {defect_desc}{size_txt}")
         elif not has_size:
             physical_grade = "PENDING_MEASUREMENT"
             reasons.append("Sound bulb. Size not measured (no ArUco reference marker detected in frame)")
@@ -62,14 +80,23 @@ class GradingEngine:
             reasons.append(f"Standard Grade A size ({diameter:.1f}mm) and sound quality")
 
         # 2. Determine selective prediction routing status (AUTO vs NEEDS_MANUAL_CHECK)
-        min_auto_conf = 0.50
-        # Only auto-grade if confidence >= 50%, no multi-view conflicts, and physical sizing is verified or defect is definite
-        is_auto = (confidence >= min_auto_conf) and (not view_conflict) and (has_size or physical_grade == "REJECTED")
+        # Class-specific confidence threshold (defaults to 0.60 if unspecified)
+        class_key = "healthy" if class_name_lower in ["healthy", "onions-quality-analysis"] else (
+            "mechanical_damage" if class_name_lower in ["damaged", "mechanical_damage"] else (
+                "sprouting" if class_name_lower in ["sprouted", "sprouting"] else class_name_lower
+            )
+        )
+        min_auto_conf = float(self.conf_thresholds.get(class_key, 0.60))
+
+        # Confidence routing applies to ALL classes (defects AND healthy)
+        is_confident = confidence >= min_auto_conf
+        has_required_measurements = has_size or (physical_grade == "REJECTED" and class_name_lower != "healthy")
+        is_auto = is_confident and (not view_conflict) and has_required_measurements
         routing_status = "AUTO" if is_auto else "NEEDS_MANUAL_CHECK"
 
         if not is_auto:
-            if confidence < min_auto_conf:
-                reasons.append(f"Provisional / Pending check: AI confidence ({confidence*100:.1f}%) < {min_auto_conf*100:.0f}%")
+            if not is_confident:
+                reasons.append(f"Provisional / Pending check: AI confidence for {raw_class_name} ({confidence*100:.1f}%) < {min_auto_conf*100:.0f}% threshold")
             if view_conflict:
                 reasons.append("Provisional / Pending check: Multi-view conflict")
             if not has_size and physical_grade != "REJECTED":
