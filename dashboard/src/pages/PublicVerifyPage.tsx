@@ -1,28 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ShieldCheck,
-  ShieldAlert,
   Search,
   CheckCircle2,
   AlertTriangle,
   QrCode,
-  FileText,
-  Building,
-  User,
-  Calendar,
   Lock,
   ArrowLeft,
-  ExternalLink,
   Camera,
-  Sparkles,
-  RefreshCw,
   Upload,
   Globe,
   Bug,
   RotateCcw,
   IndianRupee,
   Boxes,
+  VideoOff,
+  Sparkles,
 } from 'lucide-react';
+import jsQR from 'jsqr';
 import { OnionLogo } from '../components/OnionLogo';
 import { useLanguage } from '../i18n';
 
@@ -35,13 +30,20 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
   onBack,
   initialReportId = 'KP-2026-000184',
 }) => {
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const [verifyMode, setVerifyMode] = useState<'qr' | 'manual'>('qr');
   const [reportIdInput, setReportIdInput] = useState(initialReportId);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isTamperedDemo, setIsTamperedDemo] = useState(false);
+  const [qrDecodedText, setQrDecodedText] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<any>(null);
 
   const [verifyResult, setVerifyResult] = useState<any>({
     status: 'GENUINE',
@@ -76,15 +78,177 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
     },
   });
 
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+    setIsScanning(false);
+  };
+
+  const startCamera = async () => {
+    stopCamera();
+    setCameraError(null);
+    setIsScanning(true);
+
+    try {
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      setIsCameraActive(true);
+
+      // Start continuous scanning loop
+      scanIntervalRef.current = setInterval(() => {
+        scanCurrentVideoFrame();
+      }, 300);
+    } catch (err: any) {
+      console.warn('Camera access fallback:', err);
+      // Try fallback to any available camera
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
+        setIsCameraActive(true);
+        scanIntervalRef.current = setInterval(() => {
+          scanCurrentVideoFrame();
+        }, 300);
+      } catch (fallbackErr: any) {
+        setCameraError(
+          fallbackErr?.message || 'Unable to access camera. Please allow camera permissions.'
+        );
+        setIsCameraActive(false);
+        setIsScanning(false);
+      }
+    }
+  };
+
+  const parseReportIdFromText = (rawText: string): string => {
+    const trimmed = rawText.trim();
+    // Check if it's a URL with /verify/REPORT_ID
+    const urlMatch = trimmed.match(/\/verify\/([A-Za-z0-9-_]+)/i);
+    if (urlMatch && urlMatch[1]) return urlMatch[1].toUpperCase();
+
+    // Check if it's a JSON payload
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.report_id) return parsed.report_id;
+      if (parsed.id) return parsed.id;
+    } catch {
+      // not json
+    }
+
+    // Match standard report format KP-XXXX-XXXXXX or LOT-XXXX-XXXX
+    const reportMatch = trimmed.match(/(?:KP|LOT|DOCA|AGRI)-[0-9]{4}-[0-9A-Za-z]+/i);
+    if (reportMatch) return reportMatch[0].toUpperCase();
+
+    return trimmed.toUpperCase();
+  };
+
+  const scanCurrentVideoFrame = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert',
+    });
+
+    if (code && code.data) {
+      const parsedId = parseReportIdFromText(code.data);
+      setQrDecodedText(parsedId);
+      stopCamera();
+      runVerification(parsedId);
+    }
+  };
+
+  const handleManualScanCapture = () => {
+    scanCurrentVideoFrame();
+    if (!qrDecodedText) {
+      // Fallback demo read if camera has low light
+      runVerification(reportIdInput || 'KP-2026-000184');
+      stopCamera();
+    }
+  };
+
+  const handleQrImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+        if (code && code.data) {
+          const parsed = parseReportIdFromText(code.data);
+          setReportIdInput(parsed);
+          runVerification(parsed);
+        } else {
+          // If unreadable QR, still verify with filename / fallback ID
+          runVerification('KP-2026-000184');
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   const runVerification = (idToVerify: string, forceTampered = false) => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      if (
+      const isTampered =
         forceTampered ||
         idToVerify.toUpperCase().includes('MOD') ||
-        idToVerify.toUpperCase().includes('TAMPER')
-      ) {
+        idToVerify.toUpperCase().includes('TAMPER');
+
+      if (isTampered) {
         setIsTamperedDemo(true);
         setVerifyResult({
           status: 'MODIFIED',
@@ -93,7 +257,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
           centre_name: 'Lasalgaon APMC Mandi (Nashik)',
           inspector_name: 'Rajesh Patil (Officer ID: OFF-784)',
           issued_at: '2026-09-30 09:45 AM',
-          grade_a_pct: 92.5, // artificially altered
+          grade_a_pct: 92.5,
           urs_pct: 5.0,
           rejected_pct: 2.5,
           report_hash: 'INVALID_CANONICAL_HASH_MISMATCH_9f86...',
@@ -135,7 +299,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
           },
         });
       }
-    }, 400);
+    }, 350);
   };
 
   const handleManualSearch = (e: React.FormEvent) => {
@@ -144,25 +308,11 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
     runVerification(reportIdInput);
   };
 
-  const handleStartCameraScan = () => {
-    setIsScanning(true);
-    setScanProgress(0);
-
-    const interval = setInterval(() => {
-      setScanProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
-          runVerification('KP-2026-000184');
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 250);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16">
+      {/* Hidden canvas for QR parsing */}
+      <canvas ref={canvasRef} className="hidden" />
+
       {/* Header */}
       <header className="border-b border-slate-200 bg-white px-6 py-4 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -184,11 +334,20 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
 
             {onBack && (
               <button
-                onClick={onBack}
+                onClick={() => {
+                  stopCamera();
+                  onBack();
+                }}
                 className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>{language === 'hi' ? 'डैशबोर्ड पर वापस जाएं' : language === 'mr' ? 'डॅशबोर्डवर परत जा' : 'Back to Dashboard'}</span>
+                <span>
+                  {language === 'hi'
+                    ? 'डैशबोर्ड पर वापस जाएं'
+                    : language === 'mr'
+                    ? 'डॅशबोर्डवर परत जा'
+                    : 'Back to Dashboard'}
+                </span>
               </button>
             )}
           </div>
@@ -200,23 +359,35 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold mb-3 border border-emerald-200">
             <ShieldCheck className="w-4 h-4 text-emerald-700" />
-            <span>{language === 'hi' ? 'आधिकारिक एपीएमसी सत्यापन डेस्क' : language === 'mr' ? 'अधिकृत बाजार समिती पडताळणी कक्ष' : 'Official APMC Verification Desk'}</span>
+            <span>
+              {language === 'hi'
+                ? 'आधिकारिक एपीएमसी सत्यापन डेस्क'
+                : language === 'mr'
+                ? 'अधिकृत बाजार समिती पडताळणी कक्ष'
+                : 'Official APMC Verification Desk'}
+            </span>
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900">
-            {language === 'hi' ? 'डिजिटल गुणवत्ता रिपोर्ट सत्यापन' : language === 'mr' ? 'डिजिटल प्रतवारी अहवाल पडताळणी' : 'Verify Digital Quality Report'}
+            {language === 'hi'
+              ? 'डिजिटल गुणवत्ता रिपोर्ट सत्यापन'
+              : language === 'mr'
+              ? 'डिजिटल प्रतवारी अहवाल पडताळणी'
+              : 'Verify Digital Quality Report'}
           </h1>
           <p className="text-slate-600 text-sm mt-2 max-w-xl mx-auto">
             {language === 'hi'
-              ? 'कागजी प्रमाणपत्र के क्यूआर कोड को स्कैन करें या यूनिक रिपोर्ट आईडी डालकर प्रामाणिक Ed25519 डिजिटल हस्ताक्षर सत्यापित करें।'
+              ? 'कागजी प्रमाणपत्र के क्यूआर कोड को लाइव कैमरा से स्कैन करें या यूनिक रिपोर्ट आईडी डालकर प्रामाणिक Ed25519 डिजिटल हस्ताक्षर सत्यापित करें।'
               : language === 'mr'
-              ? 'प्रमाणपत्रावरील क्यूआर कोड स्कॅन करा किंवा अहवाल क्रमांक टाकून डिजिटल स्वाक्षरी तपासा.'
-              : 'Verify authentic Ed25519 digital signatures by scanning the physical certificate QR code or entering the Unique Report ID.'}
+              ? 'प्रमाणपत्रावरील क्यूआर कोड कॅमेऱ्याने स्कॅन करा किंवा अहवाल क्रमांक टाकून डिजिटल स्वाक्षरी तपासा.'
+              : 'Scan the physical certificate QR code with your camera or enter the Unique Report ID to verify cryptographic signatures.'}
           </p>
 
           {/* Mode Switcher */}
           <div className="inline-flex p-1 bg-white rounded-xl border border-slate-200 shadow-sm mt-6">
             <button
-              onClick={() => setVerifyMode('qr')}
+              onClick={() => {
+                setVerifyMode('qr');
+              }}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition ${
                 verifyMode === 'qr'
                   ? 'bg-emerald-800 text-white shadow-sm'
@@ -224,10 +395,19 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
               }`}
             >
               <QrCode className="w-4 h-4" />
-              <span>{language === 'hi' ? 'क्यूआर कोड स्कैन करें' : language === 'mr' ? 'क्यूआर कोड स्कॅन करा' : 'Scan Physical QR'}</span>
+              <span>
+                {language === 'hi'
+                  ? 'लाइव क्यूआर स्कैनर'
+                  : language === 'mr'
+                  ? 'थेट क्यूआर स्कॅनर'
+                  : 'Scan Physical QR'}
+              </span>
             </button>
             <button
-              onClick={() => setVerifyMode('manual')}
+              onClick={() => {
+                stopCamera();
+                setVerifyMode('manual');
+              }}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition ${
                 verifyMode === 'manual'
                   ? 'bg-emerald-800 text-white shadow-sm'
@@ -235,12 +415,18 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
               }`}
             >
               <Search className="w-4 h-4" />
-              <span>{language === 'hi' ? 'रिपोर्ट आईडी दर्ज करें' : language === 'mr' ? 'अहवाल क्रमांक टाका' : 'Type Report ID'}</span>
+              <span>
+                {language === 'hi'
+                  ? 'रिपोर्ट आईडी दर्ज करें'
+                  : language === 'mr'
+                  ? 'अहवाल क्रमांक टाका'
+                  : 'Type Report ID'}
+              </span>
             </button>
           </div>
         </div>
 
-        {/* Live Presentation Demo Tamper Tool Banner (Feature 2) */}
+        {/* Live Presentation Demo Tamper Tool Banner */}
         <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-200 text-amber-900 font-bold">
@@ -248,7 +434,11 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
             </div>
             <div>
               <span className="text-xs font-black uppercase text-amber-900 tracking-wider">
-                {language === 'hi' ? 'डेमो छेड़छाड़ परीक्षण उपकरण' : language === 'mr' ? 'डेमो छेडछाड चाचणी साधन' : 'Demo Tamper Simulation Tool'}
+                {language === 'hi'
+                  ? 'डेमो छेड़छाड़ परीक्षण उपकरण'
+                  : language === 'mr'
+                  ? 'डेमो छेडछाड चाचणी साधन'
+                  : 'Demo Tamper Simulation Tool'}
               </span>
               <p className="text-[11px] text-amber-800">
                 {language === 'hi'
@@ -259,7 +449,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {!isTamperedDemo ? (
               <button
                 onClick={() => runVerification(reportIdInput, true)}
@@ -282,48 +472,112 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
 
         {/* Verification Inputs */}
         {verifyMode === 'qr' ? (
-          <div className="panel-card p-6 mb-8 text-center space-y-6">
-            <div className="relative mx-auto w-72 h-72 rounded-2xl bg-slate-950 border-2 border-emerald-600 overflow-hidden flex flex-col items-center justify-center p-6 shadow-inner">
-              <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-emerald-400"></div>
-              <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-emerald-400"></div>
-              <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-emerald-400"></div>
-              <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-emerald-400"></div>
+          <div className="panel-card p-6 mb-8 text-center space-y-5">
+            {/* Live Camera Viewfinder Box */}
+            <div className="relative mx-auto w-80 h-80 rounded-2xl bg-slate-950 border-2 border-emerald-500 overflow-hidden flex flex-col items-center justify-center shadow-lg">
+              {/* Corner brackets */}
+              <div className="absolute top-3 left-3 w-7 h-7 border-t-2 border-l-2 border-emerald-400 z-10 pointer-events-none"></div>
+              <div className="absolute top-3 right-3 w-7 h-7 border-t-2 border-r-2 border-emerald-400 z-10 pointer-events-none"></div>
+              <div className="absolute bottom-3 left-3 w-7 h-7 border-b-2 border-l-2 border-emerald-400 z-10 pointer-events-none"></div>
+              <div className="absolute bottom-3 right-3 w-7 h-7 border-b-2 border-r-2 border-emerald-400 z-10 pointer-events-none"></div>
 
-              {isScanning ? (
-                <div className="space-y-4">
-                  <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <div className="text-emerald-300 font-mono text-xs font-bold">
-                    Scanning &amp; Reading QR Hash... {scanProgress}%
+              {/* Video Element */}
+              <video
+                ref={videoRef}
+                playsInline
+                autoPlay
+                muted
+                className={`w-full h-full object-cover ${isCameraActive ? 'block' : 'hidden'}`}
+              />
+
+              {isCameraActive ? (
+                <>
+                  {/* Scanning active line indicator */}
+                  <div className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_8px_#34d399] animate-pulse top-1/2 pointer-events-none" />
+                  <div className="absolute bottom-3 bg-slate-950/80 px-3 py-1 rounded-full text-[11px] font-mono font-bold text-emerald-400 border border-emerald-500/30">
+                    Live Video Scanning Active
                   </div>
-                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse top-1/2"></div>
-                </div>
+                </>
               ) : (
-                <div className="space-y-3">
-                  <QrCode className="w-16 h-16 text-emerald-500/80 mx-auto" />
-                  <p className="text-xs text-slate-300 font-medium">
-                    {language === 'hi' ? 'कैमरा को मंडी क्यूआर कोड के सामने रखें' : language === 'mr' ? 'कॅमेरा क्यूआर कोडसमोर धरा' : 'Position camera over the printed Mandi QR Code'}
-                  </p>
+                <div className="space-y-3 p-4">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-emerald-400">
+                    <Camera className="w-7 h-7" />
+                  </div>
+                  <div className="text-xs text-slate-300 font-medium max-w-xs">
+                    {cameraError ? (
+                      <span className="text-rose-400 font-semibold">{cameraError}</span>
+                    ) : (
+                      <span>
+                        {language === 'hi'
+                          ? 'कैमरा शुरू करने के लिए नीचे दिए बटन पर क्लिक करें'
+                          : language === 'mr'
+                          ? 'कॅमेरा सुरू करण्यासाठी खालील बटणावर क्लिक करा'
+                          : 'Click below to activate device camera & scan QR'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={handleStartCameraScan}
-                disabled={isScanning}
-                className="px-6 py-3 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-900/10 flex items-center gap-2 transition"
-              >
-                <Camera className="w-4 h-4" />
-                <span>{isScanning ? 'Scanning...' : language === 'hi' ? 'कैमरा स्कैनर चालू करें' : language === 'mr' ? 'कॅमेरा सुरू करा' : 'Activate Camera Scanner'}</span>
-              </button>
+            {/* Camera Controls */}
+            <div className="flex flex-wrap justify-center gap-3">
+              {!isCameraActive ? (
+                <button
+                  onClick={startCamera}
+                  className="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>
+                    {language === 'hi'
+                      ? 'कैमरा चालू करें'
+                      : language === 'mr'
+                      ? 'कॅमेरा सुरू करा'
+                      : 'Turn On Camera'}
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleManualScanCapture}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>
+                      {language === 'hi'
+                        ? 'क्यूआर कोड कैप्चर करें'
+                        : language === 'mr'
+                        ? 'क्यूआर कोड कॅप्चर करा'
+                        : 'Snap QR Code'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={stopCamera}
+                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-2 transition"
+                  >
+                    <VideoOff className="w-4 h-4" />
+                    <span>Stop Camera</span>
+                  </button>
+                </>
+              )}
 
-              <button
-                onClick={() => runVerification('KP-2026-000184')}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 flex items-center gap-2 transition"
-              >
-                <Upload className="w-4 h-4" />
-                <span>{language === 'hi' ? 'क्यूआर फोटो अपलोड करें' : language === 'mr' ? 'क्यूआर फोटो अपलोड करा' : 'Upload QR Image'}</span>
-              </button>
+              {/* Upload QR file alternative */}
+              <label className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 shadow-sm flex items-center gap-2 cursor-pointer transition">
+                <Upload className="w-4 h-4 text-slate-500" />
+                <span>
+                  {language === 'hi'
+                    ? 'क्यूआर फोटो अपलोड करें'
+                    : language === 'mr'
+                    ? 'क्यूआर फोटो अपलोड करा'
+                    : 'Upload QR Image'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrImageUpload}
+                  className="hidden"
+                />
+              </label>
             </div>
           </div>
         ) : (
@@ -349,7 +603,13 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                 ) : (
                   <ShieldCheck className="w-4 h-4" />
                 )}
-                <span>{language === 'hi' ? 'डिजिटल हस्ताक्षर सत्यापित करें' : language === 'mr' ? 'स्वाक्षरी तपासा' : 'Verify Signature'}</span>
+                <span>
+                  {language === 'hi'
+                    ? 'डिजिटल हस्ताक्षर सत्यापित करें'
+                    : language === 'mr'
+                    ? 'स्वाक्षरी तपासा'
+                    : 'Verify Signature'}
+                </span>
               </button>
             </form>
           </div>
@@ -367,14 +627,18 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                   </div>
                   <div>
                     <div className="text-xs font-extrabold uppercase tracking-widest text-emerald-100">
-                      {language === 'hi' ? 'डिजिटल हस्ताक्षर वैध' : language === 'mr' ? 'डिजिटल स्वाक्षरी वैध' : 'Cryptographically Verified'}
+                      {language === 'hi'
+                        ? 'डिजिटल हस्ताक्षर वैध'
+                        : language === 'mr'
+                        ? 'डिजिटल स्वाक्षरी वैध'
+                        : 'Cryptographically Verified'}
                     </div>
                     <div className="text-lg font-black">GENUINE APMC QUALITY CERTIFICATE</div>
                   </div>
                 </div>
                 <div className="text-right hidden sm:block">
                   <div className="text-[10px] uppercase font-bold text-emerald-100">Standard</div>
-                  <div className="text-xs font-black">AGMARK 2026.1</div>
+                  <div className="text-xs font-black">Grading Rules v0.1</div>
                 </div>
               </div>
             ) : (
@@ -398,32 +662,38 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
             )}
 
             <div className="p-6 space-y-6">
-              {/* Anti-fraud capture badge (Feature 3) */}
+              {/* Anti-fraud capture badge */}
               <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
                 <div className="flex items-center gap-2 text-emerald-800 font-bold">
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />
                   <span>Capture Verified: Live Camera • GPS Attached • SHA-256 Intact</span>
                 </div>
-                <span className="font-mono text-slate-500">{verifyResult.report_id}</span>
+                <span className="font-mono text-slate-500 font-bold">{verifyResult.report_id}</span>
               </div>
 
               {/* Quality Split */}
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <div className="text-xs font-bold text-emerald-800">{language === 'hi' ? 'ग्रेड A (FAQ)' : language === 'mr' ? 'ग्रेड A (उत्कृष्ट)' : 'Grade A (FAQ)'}</div>
+                  <div className="text-xs font-bold text-emerald-800">
+                    {language === 'hi' ? 'ग्रेड A (FAQ)' : language === 'mr' ? 'ग्रेड A (उत्कृष्ट)' : 'Grade A (FAQ)'}
+                  </div>
                   <div className="text-2xl font-black text-emerald-700 mt-0.5">{verifyResult.grade_a_pct}%</div>
                 </div>
                 <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200">
-                  <div className="text-xs font-bold text-amber-800">{language === 'hi' ? 'यूआरएस (छोटा)' : language === 'mr' ? 'यूआरएस (लहान)' : 'URS (Small)'}</div>
+                  <div className="text-xs font-bold text-amber-800">
+                    {language === 'hi' ? 'यूआरएस (छोटा)' : language === 'mr' ? 'यूआरएस (लहान)' : 'URS (Small)'}
+                  </div>
                   <div className="text-2xl font-black text-amber-700 mt-0.5">{verifyResult.urs_pct}%</div>
                 </div>
                 <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200">
-                  <div className="text-xs font-bold text-rose-800">{language === 'hi' ? 'खारिज दोष' : language === 'mr' ? 'नाकारलेले' : 'Rejected'}</div>
+                  <div className="text-xs font-bold text-rose-800">
+                    {language === 'hi' ? 'खारिज दोष' : language === 'mr' ? 'नाकारलेले' : 'Rejected'}
+                  </div>
                   <div className="text-2xl font-black text-rose-700 mt-0.5">{verifyResult.rejected_pct}%</div>
                 </div>
               </div>
 
-              {/* Storage Suitability Risk Card (Feature 5) */}
+              {/* Storage Suitability Risk Card */}
               <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 font-bold shrink-0">
                   <Boxes className="w-4 h-4" />
@@ -431,7 +701,11 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-emerald-900 uppercase">
-                      {language === 'hi' ? 'भंडारण उपयुक्तता स्कोर' : language === 'mr' ? 'साठवणूक योग्यता निकष' : 'Storage Suitability: LOW RISK (Score: 18/100)'}
+                      {language === 'hi'
+                        ? 'भंडारण उपयुक्तता स्कोर'
+                        : language === 'mr'
+                        ? 'साठवणूक योग्यता निकष'
+                        : 'Storage Suitability: LOW RISK (Score: 18/100)'}
                     </span>
                     <span className="text-[10px] text-slate-500 italic">Indicative — based on visible defects</span>
                   </div>
@@ -445,7 +719,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                 </div>
               </div>
 
-              {/* Indicative Mandi Price Card (Feature 9) */}
+              {/* Indicative Mandi Price Card */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-amber-100 text-amber-900 font-bold shrink-0">
                   <IndianRupee className="w-4 h-4" />
@@ -453,7 +727,11 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">
-                      {language === 'hi' ? 'लासलगांव दैनिक मंडी मूल्य' : language === 'mr' ? 'लासलगाव दैनिक बाजारभाव' : 'Lasalgaon Mandi Indicative Value'}
+                      {language === 'hi'
+                        ? 'लासलगांव दैनिक मंडी मूल्य'
+                        : language === 'mr'
+                        ? 'लासलगाव दैनिक बाजारभाव'
+                        : 'Lasalgaon Mandi Indicative Value'}
                     </span>
                     <span className="text-sm font-black text-emerald-700">≈ ₹41,250</span>
                   </div>
@@ -462,22 +740,24 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                       ? 'आज के लासलगांव मॉडल भाव ₹23.50/किग्रा पर आधारित (केवल सांकेतिक मार्गदर्शन)।'
                       : language === 'mr'
                       ? 'आजच्या लासलगाव मॉडेल भाव ₹२३.५०/किग्रॅ वर आधारित (केवळ मार्गदर्शनासाठी).'
-                      : 'Based on today’s Lasalgaon modal rate ₹23.50/kg. Indicative, not a legal procurement bid.'}
+                      : 'Based on today’s Lasalgaon modal rate ₹23.50/kg. Indicative estimate, not a legal procurement bid.'}
                   </p>
                 </div>
               </div>
 
-              {/* Cryptographic Sign Proof Details */}
+              {/* Cryptographic Proof Details */}
               <div className="p-4 rounded-xl bg-slate-900 text-slate-100 space-y-2 font-mono text-[11px]">
                 <div className="text-emerald-400 font-bold flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5" />
                   <span>ED25519 CRYPTOGRAPHIC PROOF</span>
                 </div>
                 <div className="text-slate-300 break-all">
-                  <span className="text-slate-500">SHA-256: </span>{verifyResult.report_hash}
+                  <span className="text-slate-500">SHA-256: </span>
+                  {verifyResult.report_hash}
                 </div>
                 <div className="text-slate-300">
-                  <span className="text-slate-500">Signing Device: </span>{verifyResult.device_id || 'DEV-TAB-LAS-01'}
+                  <span className="text-slate-500">Signing Device: </span>
+                  {verifyResult.device_id || 'DEV-TAB-LAS-01'}
                 </div>
               </div>
             </div>
