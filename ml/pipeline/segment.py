@@ -1,22 +1,22 @@
-"""YOLO segmentation inference for detecting onions and defect classes."""
+"""YOLO detection and segmentation inference for detecting onions and defect classes."""
 
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import numpy as np
 import cv2
 
-# Exact dataset classes requested:
-# 0 - Damaged
-# 1 - Healthy
-# 2 - Onions-Quality-Analysis
-# 3 - Rotten
-# 4 - Sprouted
+# Exact dataset classes for best.pt:
+# 0 - Healthy
+# 1 - Damaged / Mechanical Damage
+# 2 - Rotten
+# 3 - Sprouted / Sprouting
+# 4 - Mould
 CLASSES = [
-    "Damaged",                 # 0
-    "Healthy",                 # 1
-    "Onions-Quality-Analysis", # 2
-    "Rotten",                  # 3
-    "Sprouted",                # 4
+    "Healthy",                 # 0
+    "Damaged",                 # 1
+    "Rotten",                  # 2
+    "Sprouted",                # 3
+    "Mould",                   # 4
 ]
 
 
@@ -27,7 +27,7 @@ class SegmentResult:
         class_name: str,
         confidence: float,
         bbox_xyxy: List[float],
-        contour_px: np.ndarray,  # shape (N, 2)
+        contour_px: np.ndarray,
         mask_binary: Optional[np.ndarray] = None,
     ):
         self.class_id = class_id
@@ -48,12 +48,11 @@ class SegmentResult:
 
 
 class YOLOSegmentor:
-    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.25):
+    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.15):
         self.conf_threshold = conf_threshold
         self.model = None
 
         if model_path is None:
-            # Check default candidate paths for best.pt
             candidates = [
                 Path("best.pt"),
                 Path(__file__).resolve().parents[2] / "best.pt",
@@ -72,23 +71,23 @@ class YOLOSegmentor:
                 self.model = YOLO(model_path)
                 print(f"[YOLOSegmentor] Successfully loaded weights from '{model_path}'")
             except Exception as e:
-                print(f"[YOLOSegmentor] Note: Could not load model from '{model_path}': {e}. Using fallback simulation.")
+                print(f"[YOLOSegmentor] Note: Could not load model from '{model_path}': {e}.")
 
     def infer(self, image: np.ndarray) -> List[SegmentResult]:
-        """Run segmentation inference on image array."""
+        """Run YOLO inference on image array."""
         if image is None or image.size == 0:
             return []
 
         if self.model is not None:
             results = self.model(image, conf=self.conf_threshold, verbose=False)
             output: List[SegmentResult] = []
-            if len(results) > 0 and results[0].masks is not None:
+
+            if len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
                 r = results[0]
                 boxes = r.boxes
                 masks = r.masks
                 model_names = getattr(self.model, "names", {})
 
-                # Label normalizer mapping to canonical categories
                 name_map = {
                     "healthy": "Healthy",
                     "mechanical_damage": "Damaged",
@@ -106,48 +105,30 @@ class YOLOSegmentor:
                 for i in range(len(boxes)):
                     c_id = int(boxes.cls[i].item())
                     conf = float(boxes.conf[i].item())
-                    xyxy = boxes.xyxy[i].tolist()
-                    
+                    xyxy = [float(x) for x in boxes.xyxy[i].tolist()]
+
                     raw_name = model_names.get(c_id, CLASSES[c_id] if c_id < len(CLASSES) else f"class_{c_id}")
                     c_name = name_map.get(str(raw_name).lower().strip(), str(raw_name).capitalize())
 
-                    # Polygon contour
-                    polygon = masks.xy[i]  # shape (N, 2)
-                    contour_px = np.array(polygon, dtype=np.int32) if len(polygon) > 0 else np.array([])
+                    # Check if segmentation masks are available
+                    if masks is not None and len(masks.xy) > i and len(masks.xy[i]) > 0:
+                        polygon = masks.xy[i]
+                        contour_px = np.array(polygon, dtype=np.int32)
+                    else:
+                        # Extract smooth elliptical contour from bounding box for detection models
+                        x1, y1, x2, y2 = xyxy
+                        cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+                        rx, ry = max(2.0, (x2 - x1) / 2.0), max(2.0, (y2 - y1) / 2.0)
+                        angles = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+                        pts_x = cx + rx * np.cos(angles)
+                        pts_y = cy + ry * np.sin(angles)
+                        contour_px = np.stack([pts_x, pts_y], axis=1).astype(np.int32)
+
                     output.append(SegmentResult(c_id, c_name, conf, xyxy, contour_px))
                 return output
 
-        # Simulation fallback for test environments without trained weights
-        return self._fallback_segmentation(image)
+            # When trained YOLO model runs and finds 0 onions, return exactly []
+            return []
 
-    def _fallback_segmentation(self, image: np.ndarray) -> List[SegmentResult]:
-        """Heuristic segmentation for testing and golden evaluation without weights."""
-        h, w = image.shape[:2]
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
-
-        # Otsu thresholding after blur
-        blurred = cv2.GaussianBlur(gray, (9, 9), 2)
-        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        output: List[SegmentResult] = []
-
-        min_area = (h * w) * 0.001
-        max_area = (h * w) * 0.25
-
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if min_area <= area <= max_area:
-                x, y, bw, bh = cv2.boundingRect(cnt)
-                if 0.4 <= bw / float(bh) <= 2.5:
-                    pts = cnt.reshape(-1, 2)
-                    output.append(
-                        SegmentResult(
-                            class_id=1,
-                            class_name="Healthy",
-                            confidence=0.90,
-                            bbox_xyxy=[float(x), float(y), float(x + bw), float(y + bh)],
-                            contour_px=pts,
-                        )
-                    )
-        return output
+        # Only if model could not be loaded at all, return empty
+        return []
