@@ -55,10 +55,11 @@ class YOLOSegmentor:
 
         if model_path is None:
             candidates = [
-                Path("best.pt"),
-                Path(__file__).resolve().parents[2] / "best.pt",
                 Path(__file__).resolve().parents[1] / "weights" / "best.pt",
                 Path(__file__).resolve().parents[2] / "ml" / "weights" / "best.pt",
+                Path("ml/weights/best.pt"),
+                Path("best.pt"),
+                Path(__file__).resolve().parents[2] / "best.pt",
             ]
             for cand in candidates:
                 if cand.exists():
