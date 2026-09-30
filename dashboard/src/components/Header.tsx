@@ -27,8 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-10">
       {/* Left: System Sync Status */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-900 text-xs font-bold">
+          <span className="w-2 h-2 rounded-full bg-purple-700 animate-pulse"></span>
           <span>{t('systemLive')}</span>
         </div>
 
@@ -44,8 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right Controls */}
       <div className="flex items-center gap-3 sm:gap-4">
         {/* Multilingual Selector (English / Hindi / Marathi) */}
-        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-sm">
-          <Globe className="w-3.5 h-3.5 text-emerald-800 ml-1.5 mr-1" />
+        <div className="flex items-center bg-purple-50/60 border border-purple-200/80 rounded-xl p-1 shadow-sm">
+          <Globe className="w-3.5 h-3.5 text-purple-800 ml-1.5 mr-1" />
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as Language)}
@@ -77,11 +77,11 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={onRefresh}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition border border-slate-200 shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-900 text-xs font-bold transition border border-slate-200 hover:border-purple-200 shadow-sm"
           title="Refresh Data"
         >
           <RefreshCw
-            className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-700' : ''}`}
+            className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-purple-800' : ''}`}
           />
           <span>{t('refresh')}</span>
         </button>

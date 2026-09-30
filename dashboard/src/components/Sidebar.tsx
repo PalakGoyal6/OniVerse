@@ -81,8 +81,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all duration-150 ${
                   isActive
-                    ? 'bg-emerald-800 text-white shadow-md shadow-emerald-900/10'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-purple-900 text-white shadow-md shadow-purple-950/20'
+                    : 'text-slate-600 hover:text-purple-950 hover:bg-purple-50/70'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -95,8 +95,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span
                     className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-md ${
                       isActive
-                        ? 'bg-emerald-700 text-white'
-                        : 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-purple-700 text-white'
+                        : 'bg-purple-100 text-purple-900'
                     }`}
                   >
                     {item.badge}
@@ -117,14 +117,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
         <button
           onClick={onOpenLanding}
-          className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center justify-center gap-2 transition shadow-sm"
+          className="w-full py-2 px-3 bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-900 text-xs font-bold rounded-xl border border-slate-200 hover:border-purple-200 flex items-center justify-center gap-2 transition shadow-sm"
         >
-          <Globe className="w-3.5 h-3.5 text-emerald-700" />
+          <Globe className="w-3.5 h-3.5 text-purple-800" />
           <span>{language === 'hi' ? 'सार्वजनिक लैंडिंग पेज देखें' : language === 'mr' ? 'सार्वजनिक मुख्यपृष्ठ पहा' : 'View Public Landing Page'}</span>
         </button>
 
-        <div className="flex items-center gap-2 text-xs text-emerald-800 font-bold">
-          <CheckCircle className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+        <div className="flex items-center gap-2 text-xs text-purple-900 font-bold">
+          <CheckCircle className="w-3.5 h-3.5 text-purple-800 shrink-0" />
           <span>{language === 'hi' ? 'एगमार्क-अनुरूप नियम सक्रिय' : language === 'mr' ? 'एगमार्क-अनुरूप नियम सक्रिय' : 'AGMARK-Aligned Rules'}</span>
         </div>
         <div className="text-[10px] text-slate-500 font-medium">

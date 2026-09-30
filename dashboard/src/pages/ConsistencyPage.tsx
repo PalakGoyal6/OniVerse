@@ -56,7 +56,7 @@ export const ConsistencyPage: React.FC<ConsistencyPageProps> = ({ inspectors }) 
               Human grading variance averages 21.2% difference on identical onions; AI reduces variance to &lt; 0.4%.
             </p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+          <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-900 text-xs font-bold border border-purple-200">
             Zero Bias Target Met
           </span>
         </div>

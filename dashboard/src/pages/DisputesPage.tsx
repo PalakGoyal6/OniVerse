@@ -59,7 +59,7 @@ export const DisputesPage: React.FC<DisputesPageProps> = ({ disputes }) => {
                 key={d.id}
                 className={`panel-card p-5 cursor-pointer transition border ${
                   selectedDispute?.id === d.id
-                    ? 'border-emerald-700 ring-2 ring-emerald-700/20 bg-emerald-50/30'
+                    ? 'border-purple-800 ring-2 ring-purple-800/20 bg-purple-50/40'
                     : 'hover:border-slate-300'
                 }`}
                 onClick={() => {
@@ -70,7 +70,7 @@ export const DisputesPage: React.FC<DisputesPageProps> = ({ disputes }) => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-xs text-emerald-800">
+                      <span className="font-mono font-bold text-xs text-purple-900">
                         DISP-{d.id}
                       </span>
                       <span className="text-slate-300">•</span>
@@ -79,7 +79,7 @@ export const DisputesPage: React.FC<DisputesPageProps> = ({ disputes }) => {
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           isOpen
                             ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-purple-100 text-purple-900 border border-purple-200'
                         }`}
                       >
                         {d.status}
