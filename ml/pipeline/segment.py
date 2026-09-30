@@ -48,7 +48,7 @@ class SegmentResult:
 
 
 class YOLOSegmentor:
-    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.15):
+    def __init__(self, model_path: Optional[str] = None, conf_threshold: float = 0.45):
         self.conf_threshold = conf_threshold
         self.model = None
 
@@ -74,12 +74,16 @@ class YOLOSegmentor:
                 print(f"[YOLOSegmentor] Note: Could not load model from '{model_path}': {e}.")
 
     def infer(self, image: np.ndarray) -> List[SegmentResult]:
-        """Run YOLO inference on image array."""
+        """Run YOLO inference on image array with confidence & geometry filtering."""
         if image is None or image.size == 0:
             return []
 
+        img_h, img_w = image.shape[:2]
+        total_img_area = float(img_h * img_w)
+
         if self.model is not None:
-            results = self.model(image, conf=self.conf_threshold, verbose=False)
+            # Use robust confidence threshold 0.45 and IoU NMS 0.45 to eliminate background noise
+            results = self.model(image, conf=self.conf_threshold, iou=0.45, verbose=False)
             output: List[SegmentResult] = []
 
             if len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
@@ -107,6 +111,21 @@ class YOLOSegmentor:
                     conf = float(boxes.conf[i].item())
                     xyxy = [float(x) for x in boxes.xyxy[i].tolist()]
 
+                    x1, y1, x2, y2 = xyxy
+                    bw = max(1.0, x2 - x1)
+                    bh = max(1.0, y2 - y1)
+                    box_area = bw * bh
+
+                    # Physical plausibility checks:
+                    # 1. Reject detections covering more than 35% of total image (e.g. human face/torso)
+                    if (box_area / total_img_area) > 0.35:
+                        continue
+
+                    # 2. Reject extreme aspect ratios (onions are generally round/oval)
+                    aspect = bw / bh
+                    if aspect < 0.40 or aspect > 2.50:
+                        continue
+
                     raw_name = model_names.get(c_id, CLASSES[c_id] if c_id < len(CLASSES) else f"class_{c_id}")
                     c_name = name_map.get(str(raw_name).lower().strip(), str(raw_name).capitalize())
 
@@ -116,9 +135,8 @@ class YOLOSegmentor:
                         contour_px = np.array(polygon, dtype=np.int32)
                     else:
                         # Extract smooth elliptical contour from bounding box for detection models
-                        x1, y1, x2, y2 = xyxy
                         cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-                        rx, ry = max(2.0, (x2 - x1) / 2.0), max(2.0, (y2 - y1) / 2.0)
+                        rx, ry = max(2.0, bw / 2.0), max(2.0, bh / 2.0)
                         angles = np.linspace(0, 2 * np.pi, 32, endpoint=False)
                         pts_x = cx + rx * np.cos(angles)
                         pts_y = cy + ry * np.sin(angles)
@@ -130,5 +148,4 @@ class YOLOSegmentor:
             # When trained YOLO model runs and finds 0 onions, return exactly []
             return []
 
-        # Only if model could not be loaded at all, return empty
         return []
