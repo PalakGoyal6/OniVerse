@@ -135,11 +135,19 @@ async def analyze_onion_images(
     back_image: Optional[UploadFile] = File(None),
     sample_weight_kg: Optional[float] = Form(None),
     total_lot_weight_kg: Optional[float] = Form(None),
+    save_to_db: bool = Form(False),
+    farmer_name: str = Form("Kisan Ramesh"),
+    farmer_phone: str = Form("9876543210"),
+    centre_name: str = Form("Lasalgaon APMC Mandi"),
+    variety: str = Form("Nashik Red"),
+    db: Session = Depends(get_db),
 ):
-    """Directly grades onion photo(s) using best.pt YOLO segmentation and AGMARK engine."""
+    """Directly grades onion photo(s) using best.pt YOLO segmentation, ArUco sizing and AGMARK engine."""
     import cv2
     import numpy as np
+    import uuid
     from ml.pipeline.run import OnionLotProcessor
+    from ..services.crypto import compute_canonical_hash, generate_ed25519_keypair, sign_hash_ed25519
 
     front_bytes = await front_image.read()
     front_np = np.frombuffer(front_bytes, np.uint8)
@@ -161,5 +169,74 @@ async def analyze_onion_images(
         sample_weight_kg=sample_weight_kg,
         total_lot_weight_kg=total_lot_weight_kg,
     )
+
+    if save_to_db:
+        # Generate persistent report ID and cryptographic signature
+        report_id = f"KP-2026-{uuid.uuid4().hex[:6].upper()}"
+        lot_id = f"LOT-2026-{uuid.uuid4().hex[:4].upper()}"
+
+        summary = result.get("summary", {})
+        canonical_payload = {
+            "report_id": report_id,
+            "lot_id": lot_id,
+            "centre_name": centre_name,
+            "farmer_name": farmer_name,
+            "farmer_phone": farmer_phone,
+            "variety": variety,
+            "grade_a_pct": summary.get("grade_a_pct", 0.0),
+            "urs_pct": summary.get("urs_pct", 0.0),
+            "rejected_pct": summary.get("rejected_pct", 0.0),
+            "average_diameter_mm": summary.get("average_diameter_mm", 52.0),
+            "total_onions_count": summary.get("total_onions_count", len(result.get("onions", []))),
+            "sample_weight_kg": sample_weight_kg or summary.get("total_estimated_weight_kg", 5.0),
+            "total_lot_weight_kg": total_lot_weight_kg or 1800.0,
+            "lot_verdict": summary.get("lot_verdict", "GRADE_A"),
+        }
+
+        report_hash = compute_canonical_hash(canonical_payload)
+        priv_key, pub_key = generate_ed25519_keypair()
+        signature_hex = sign_hash_ed25519(priv_key, report_hash)
+
+        # Get or create default inspector user
+        user = db.query(User).filter(User.username == "inspector1").first()
+        if not user:
+            user = User(username="inspector1", full_name="Official Inspector", centre_name=centre_name)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        new_report = Report(
+            report_id=report_id,
+            lot_id=lot_id,
+            centre_name=centre_name,
+            inspector_id=user.id,
+            farmer_name=farmer_name,
+            farmer_phone=farmer_phone,
+            variety=variety,
+            sample_weight_kg=canonical_payload["sample_weight_kg"],
+            total_lot_weight_kg=canonical_payload["total_lot_weight_kg"],
+            total_onions_count=canonical_payload["total_onions_count"],
+            grade_a_pct=canonical_payload["grade_a_pct"],
+            urs_pct=canonical_payload["urs_pct"],
+            rejected_pct=canonical_payload["rejected_pct"],
+            average_diameter_mm=canonical_payload["average_diameter_mm"],
+            lot_verdict=canonical_payload["lot_verdict"],
+            report_hash=report_hash,
+            signature_hex=signature_hex,
+            device_id="DEV-SERVER-01",
+            model_version=result.get("model_version", "best.pt"),
+            rules_version="2026.1",
+            app_version="2.1.0",
+            raw_canonical_json=json.dumps(canonical_payload, sort_keys=True),
+        )
+        db.add(new_report)
+        db.commit()
+        db.refresh(new_report)
+
+        result["saved_report_id"] = report_id
+        result["stored_in_database"] = True
+        result["report_hash"] = report_hash
+        result["signature_hex"] = signature_hex
+
     return result
 
