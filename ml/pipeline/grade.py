@@ -23,21 +23,31 @@ class GradingEngine:
     def grade_single_onion(self, onion: Dict[str, Any]) -> Dict[str, Any]:
         """
         Grades a single onion instance based on AGMARK size standards and defect classification.
-        Assigns physical grade (GRADE_A, URS, REJECTED) and selective prediction routing (AUTO vs NEEDS_MANUAL_CHECK).
+        Assigns physical grade (GRADE_A, URS, REJECTED, or PENDING_MEASUREMENT) and routing status (AUTO vs NEEDS_MANUAL_CHECK).
         """
-        diameter = float(onion.get("diameter_mm", 0.0))
+        raw_dia = onion.get("diameter_mm")
+        has_size = raw_dia is not None and float(raw_dia) > 0.0
+        diameter = float(raw_dia) if has_size else None
+
         raw_class_name = str(onion.get("class_name", "Healthy"))
         class_name_lower = raw_class_name.lower().strip()
         confidence = float(onion.get("confidence", 1.0))
         view_conflict = bool(onion.get("view_conflict", False))
+        marker_detected = bool(onion.get("marker_detected", has_size))
 
         reasons = []
 
-        # 1. Determine physical AGMARK grade based on defect and size
+        # 1. Determine physical AGMARK grade based on defect and real measured size
         if class_name_lower in ["rotten", "damaged", "sprouted", "mould"]:
             physical_grade = "REJECTED"
             defect_desc = self.defect_labels.get(raw_class_name, raw_class_name)
-            reasons.append(f"Severe defect: {defect_desc}")
+            if has_size:
+                reasons.append(f"Severe defect: {defect_desc} ({diameter:.1f}mm)")
+            else:
+                reasons.append(f"Severe defect: {defect_desc} (Size not measured - no ArUco marker)")
+        elif not has_size:
+            physical_grade = "PENDING_MEASUREMENT"
+            reasons.append("Sound bulb. Size not measured (no ArUco reference marker detected in frame)")
         elif diameter < 35.0:
             physical_grade = "REJECTED"
             reasons.append(f"Undersized for procurement ({diameter:.1f}mm < 35.0mm cutoff)")
@@ -53,29 +63,37 @@ class GradingEngine:
 
         # 2. Determine selective prediction routing status (AUTO vs NEEDS_MANUAL_CHECK)
         min_auto_conf = 0.50
-        is_auto = (confidence >= min_auto_conf) and (not view_conflict)
+        # Only auto-grade if confidence >= 50%, no multi-view conflicts, and physical sizing is verified or defect is definite
+        is_auto = (confidence >= min_auto_conf) and (not view_conflict) and (has_size or physical_grade == "REJECTED")
         routing_status = "AUTO" if is_auto else "NEEDS_MANUAL_CHECK"
 
         if not is_auto:
             if confidence < min_auto_conf:
-                reasons.append(f"Flagged for review: AI confidence ({confidence*100:.1f}%) < {min_auto_conf*100:.0f}%")
+                reasons.append(f"Provisional / Pending check: AI confidence ({confidence*100:.1f}%) < {min_auto_conf*100:.0f}%")
             if view_conflict:
-                reasons.append("Flagged for review: Multi-view conflict")
+                reasons.append("Provisional / Pending check: Multi-view conflict")
+            if not has_size and physical_grade != "REJECTED":
+                reasons.append("Provisional / Pending check: ArUco marker missing, size measurement required")
+
+        raw_wt = onion.get("weight_g")
+        est_weight = round(float(raw_wt), 1) if raw_wt is not None and float(raw_wt) > 0.0 else None
 
         return {
             "onion_id": onion.get("onion_id", 1),
             "grade": physical_grade,
             "status": routing_status,
+            "is_auto": is_auto,
             "class_name": raw_class_name,
             "class_display": self.defect_labels.get(raw_class_name, raw_class_name),
-            "diameter_mm": round(diameter, 1),
-            "length_mm": round(float(onion.get("length_mm", diameter)), 1),
-            "width_mm": round(float(onion.get("width_mm", diameter)), 1),
-            "weight_g": round(float(onion.get("weight_g", 0.0)), 1),
+            "diameter_mm": round(diameter, 1) if diameter is not None else None,
+            "length_mm": round(float(onion.get("length_mm")), 1) if onion.get("length_mm") is not None else None,
+            "width_mm": round(float(onion.get("width_mm")), 1) if onion.get("width_mm") is not None else None,
+            "weight_g": est_weight,
             "confidence": round(confidence, 3),
             "reasons": reasons,
             "fused_views": onion.get("fused_views", ["front"]),
             "centroid_mm": onion.get("centroid_mm", [0.0, 0.0]),
+            "marker_detected": marker_detected,
         }
 
     def grade_lot(
@@ -88,14 +106,18 @@ class GradingEngine:
             return {
                 "rules_version": self.version,
                 "total_count": 0,
+                "auto_graded_count": 0,
+                "needs_check_count": 0,
+                "summary_status_text": "0 of 0 auto-graded • 0 need your check",
                 "total_weight_g": 0.0,
-                "grade_breakdown_count": {"GRADE_A": 0, "URS": 0, "REJECTED": 0, "NEEDS_MANUAL_CHECK": 0},
-                "grade_breakdown_weight": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0, "NEEDS_MANUAL_CHECK": 0.0},
-                "percentages_by_count": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0, "NEEDS_MANUAL_CHECK": 0.0},
-                "percentages_by_weight": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0, "NEEDS_MANUAL_CHECK": 0.0},
+                "grade_breakdown_count": {"GRADE_A": 0, "URS": 0, "REJECTED": 0},
+                "grade_breakdown_weight": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0},
+                "percentages_by_count": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0},
+                "percentages_by_weight": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0},
+                "provisional_percentages": {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0, "PENDING_MEASUREMENT": 0.0},
                 "defect_breakdown_count": {},
-                "size_distribution": {"<35mm": 0, "35-45mm": 0, "45-60mm": 0, "60-75mm": 0, ">75mm": 0},
-                "average_diameter_mm": 0.0,
+                "size_distribution": {"<35mm": 0, "35-45mm": 0, "45-60mm": 0, "60-75mm": 0, ">75mm": 0, "unmeasured": 0},
+                "average_diameter_mm": None,
                 "lot_verdict": "REJECTED",
                 "onions": [],
             }
@@ -103,32 +125,40 @@ class GradingEngine:
         graded_onions = [self.grade_single_onion(o) for o in onions]
 
         total_count = len(graded_onions)
-        total_weight_g = sum(o["weight_g"] for o in graded_onions)
+        auto_onions = [o for o in graded_onions if o["status"] == "AUTO"]
+        auto_count = len(auto_onions)
+        needs_check_count = total_count - auto_count
 
-        counts = {"GRADE_A": 0, "URS": 0, "REJECTED": 0, "NEEDS_MANUAL_CHECK": 0}
-        weights = {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0, "NEEDS_MANUAL_CHECK": 0.0}
+        total_weight_g = sum(o["weight_g"] for o in graded_onions if o["weight_g"] is not None)
+
+        # Confirmed counts strictly over AUTO + officer confirmed
+        confirmed_counts = {"GRADE_A": 0, "URS": 0, "REJECTED": 0}
+        confirmed_weights = {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0}
+
+        for o in auto_onions:
+            g = o["grade"]
+            w = o["weight_g"] or 0.0
+            if g in confirmed_counts:
+                confirmed_counts[g] += 1
+                confirmed_weights[g] += w
+
+        # Provisional breakdown across all onions
+        provisional_counts = {"GRADE_A": 0, "URS": 0, "REJECTED": 0, "PENDING_MEASUREMENT": 0}
         defect_counts: Dict[str, int] = {}
-        size_bins = {"<35mm": 0, "35-45mm": 0, "45-60mm": 0, "60-75mm": 0, ">75mm": 0}
+        size_bins = {"<35mm": 0, "35-45mm": 0, "45-60mm": 0, "60-75mm": 0, ">75mm": 0, "unmeasured": 0}
 
-        auto_count = 0
         for o in graded_onions:
             g = o["grade"]
-            w = o["weight_g"]
             d = o["diameter_mm"]
             c = o["class_name"]
-            st = o.get("status", "AUTO")
 
-            counts[g] = counts.get(g, 0) + 1
-            weights[g] = weights.get(g, 0.0) + w
-
-            if st == "AUTO":
-                auto_count += 1
-            else:
-                counts["NEEDS_MANUAL_CHECK"] = counts.get("NEEDS_MANUAL_CHECK", 0) + 1
-
+            if g in provisional_counts:
+                provisional_counts[g] += 1
             defect_counts[c] = defect_counts.get(c, 0) + 1
 
-            if d < 35.0:
+            if d is None:
+                size_bins["unmeasured"] += 1
+            elif d < 35.0:
                 size_bins["<35mm"] += 1
             elif d < 45.0:
                 size_bins["35-45mm"] += 1
@@ -139,38 +169,57 @@ class GradingEngine:
             else:
                 size_bins[">75mm"] += 1
 
-        pct_count = {
-            "GRADE_A": round((counts["GRADE_A"] / total_count) * 100.0, 1),
-            "URS": round((counts["URS"] / total_count) * 100.0, 1),
-            "REJECTED": round((counts["REJECTED"] / total_count) * 100.0, 1),
-            "NEEDS_MANUAL_CHECK": round((counts["NEEDS_MANUAL_CHECK"] / total_count) * 100.0, 1),
-        }
-        pct_weight = {
-            k: round((v / total_weight_g) * 100.0, 1) if total_weight_g > 0 else 0.0
-            for k, v in weights.items()
-        }
-
-        avg_diameter = round(sum(o["diameter_mm"] for o in graded_onions) / total_count, 1)
-
-        if pct_count["REJECTED"] > 15.0:
-            lot_verdict = "REJECTED"
-        elif pct_count["URS"] > 25.0:
-            lot_verdict = "URS_LOT"
+        # Percentages only count AUTO onions
+        if auto_count > 0:
+            pct_count = {
+                "GRADE_A": round((confirmed_counts["GRADE_A"] / auto_count) * 100.0, 1),
+                "URS": round((confirmed_counts["URS"] / auto_count) * 100.0, 1),
+                "REJECTED": round((confirmed_counts["REJECTED"] / auto_count) * 100.0, 1),
+            }
+            auto_weight_total = sum(confirmed_weights.values())
+            pct_weight = {
+                k: round((v / auto_weight_total) * 100.0, 1) if auto_weight_total > 0 else 0.0
+                for k, v in confirmed_weights.items()
+            }
         else:
-            lot_verdict = "GRADE_A_LOT"
+            pct_count = {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0}
+            pct_weight = {"GRADE_A": 0.0, "URS": 0.0, "REJECTED": 0.0}
+
+        provisional_pct = {
+            k: round((v / total_count) * 100.0, 1) for k, v in provisional_counts.items()
+        }
+
+        measured_dias = [o["diameter_mm"] for o in graded_onions if o["diameter_mm"] is not None]
+        avg_diameter = round(sum(measured_dias) / len(measured_dias), 1) if len(measured_dias) > 0 else None
+
+        if auto_count > 0:
+            if pct_count["REJECTED"] > 15.0:
+                lot_verdict = "REJECTED"
+            elif pct_count["URS"] > 25.0:
+                lot_verdict = "URS"
+            else:
+                lot_verdict = "GRADE_A"
+        elif provisional_pct.get("REJECTED", 0.0) > 15.0:
+            lot_verdict = "REJECTED"
+        else:
+            lot_verdict = "NEEDS_MANUAL_CHECK"
+
+        summary_status = f"{auto_count} of {total_count} auto-graded • {needs_check_count} need your check"
 
         return {
             "rules_version": self.version,
             "total_count": total_count,
             "auto_graded_count": auto_count,
-            "needs_check_count": total_count - auto_count,
+            "needs_check_count": needs_check_count,
+            "summary_status_text": summary_status,
             "total_weight_g": round(total_weight_g, 1),
             "sample_weight_kg": sample_weight_kg,
             "total_lot_weight_kg": total_lot_weight_kg,
-            "grade_breakdown_count": counts,
-            "grade_breakdown_weight": {k: round(v, 1) for k, v in weights.items()},
+            "grade_breakdown_count": confirmed_counts,
+            "grade_breakdown_weight": {k: round(v, 1) for k, v in confirmed_weights.items()},
             "percentages_by_count": pct_count,
             "percentages_by_weight": pct_weight,
+            "provisional_percentages": provisional_pct,
             "defect_breakdown_count": defect_counts,
             "size_distribution": size_bins,
             "average_diameter_mm": avg_diameter,

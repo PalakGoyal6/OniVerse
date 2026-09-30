@@ -65,7 +65,7 @@ def generate_dev_keypair() -> Tuple[str, str]:
 def sign_canonical_hash(private_key_hex: str, report_hash_hex: str) -> str:
     """Signs report hash with Ed25519 private key."""
     priv_bytes = bytes.fromhex(private_key_hex)
-    private_key = ed25519.Ed25519PrivateKey.from_bytes(priv_bytes)
+    private_key = ed25519.Ed25519PrivateKey.from_private_bytes(priv_bytes)
     sig = private_key.sign(report_hash_hex.encode("utf-8"))
     return sig.hex()
 

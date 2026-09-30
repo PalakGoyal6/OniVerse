@@ -65,47 +65,46 @@ class OnionLotProcessor:
         H_px_to_mm, marker_corners, marker_meta = self.marker_detector.detect_and_compute_homography(image)
         marker_found = H_px_to_mm is not None
 
-        if not marker_found:
-            # Smart fallback: approximate 0.35 mm/pixel scale for casual test photos without ArUco marker
-            h, w = image.shape[:2]
-            scale = 400.0 / max(w, h)  # assume field of view covers ~400mm tray
-            H_px_to_mm = np.array([
-                [scale, 0.0, 0.0],
-                [0.0, scale, 0.0],
-                [0.0, 0.0, 1.0],
-            ], dtype=np.float64)
-            marker_meta = {"dictionary": "FALLBACK_PIXEL_SCALE", "marker_found": False}
-
         segments = self.segmentor.infer(image)
         onions_raw = []
 
         for idx, seg in enumerate(segments):
-            measurement = self.measurer.measure_contour(seg.contour_px, H_px_to_mm)
-            if measurement is None:
-                continue
-
-            est_weight = self.weight_estimator.estimate_single_weight(
-                measurement.length_mm, measurement.width_mm
-            )
+            if marker_found and H_px_to_mm is not None:
+                measurement = self.measurer.measure_contour(seg.contour_px, H_px_to_mm)
+                if measurement is not None:
+                    dia = measurement.diameter_mm
+                    len_mm = measurement.length_mm
+                    wid_mm = measurement.width_mm
+                    area_mm2 = measurement.area_mm2
+                    centroid = measurement.centroid_mm.tolist()
+                    est_weight = self.weight_estimator.estimate_single_weight(len_mm, wid_mm)
+                else:
+                    dia = len_mm = wid_mm = area_mm2 = est_weight = None
+                    centroid = [0.0, 0.0]
+            else:
+                # ArUco reference marker not detected in image: do not fabricate arbitrary metric sizes
+                dia = len_mm = wid_mm = area_mm2 = est_weight = None
+                centroid = [0.0, 0.0]
 
             onions_raw.append({
                 "view_idx": idx + 1,
                 "class_name": seg.class_name,
                 "confidence": seg.confidence,
-                "diameter_mm": measurement.diameter_mm,
-                "length_mm": measurement.length_mm,
-                "width_mm": measurement.width_mm,
-                "area_mm2": measurement.area_mm2,
-                "centroid_mm": measurement.centroid_mm.tolist(),
+                "diameter_mm": dia,
+                "length_mm": len_mm,
+                "width_mm": wid_mm,
+                "area_mm2": area_mm2,
+                "centroid_mm": centroid,
                 "weight_g": est_weight,
                 "bbox_xyxy": seg.bbox_xyxy,
+                "marker_detected": marker_found,
             })
 
         return {
             "view": view_name,
             "camera_quality": quality,
             "marker_detected": marker_found,
-            "marker_meta": marker_meta,
+            "marker_meta": marker_meta if marker_meta else {"marker_found": False, "reason": "No ArUco marker detected"},
             "onions": onions_raw,
         }
 
@@ -127,17 +126,23 @@ class OnionLotProcessor:
         back_onions = back_res["onions"] if back_res and back_res.get("marker_detected") else []
         fused_onions = self.matcher.fuse_views(front_res["onions"], back_onions)
 
-        # Apply proportional sample weight scaling if sample weight provided
-        raw_weights = [
-            self.weight_estimator.estimate_single_weight(o["length_mm"], o["width_mm"])
-            for o in fused_onions
-        ]
-        calibrated_weights = self.weight_estimator.calibrate_sample_weights(
-            raw_weights, sample_weight_kg
-        )
-
-        for i, o in enumerate(fused_onions):
-            o["weight_g"] = calibrated_weights[i] if i < len(calibrated_weights) else raw_weights[i]
+        # Apply proportional sample weight scaling if sample weight provided and sizes exist
+        measured_onions = [o for o in fused_onions if o.get("length_mm") is not None]
+        if len(measured_onions) > 0:
+            raw_weights = [
+                self.weight_estimator.estimate_single_weight(o["length_mm"], o["width_mm"])
+                for o in measured_onions
+            ]
+            calibrated_weights = self.weight_estimator.calibrate_sample_weights(
+                raw_weights, sample_weight_kg
+            )
+            for i, o in enumerate(measured_onions):
+                o["weight_g"] = calibrated_weights[i] if i < len(calibrated_weights) else raw_weights[i]
+        elif sample_weight_kg is not None and len(fused_onions) > 0:
+            # Distribute sample weight equally if no marker detected
+            equal_wt = (sample_weight_kg * 1000.0) / len(fused_onions)
+            for o in fused_onions:
+                o["weight_g"] = round(equal_wt, 1)
 
         # Grade the lot
         graded_lot = self.grading_engine.grade_lot(
