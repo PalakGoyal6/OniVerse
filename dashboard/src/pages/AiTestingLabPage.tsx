@@ -233,14 +233,15 @@ export const AiTestingLabPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setAnalysisResult(data);
+        setAnalysisResult({ ...data, is_live_inference: true });
       } else {
-        throw new Error('Backend inference API error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Backend inference API error');
       }
-    } catch {
-      // Fallback preset demo if backend offline
+    } catch (err: any) {
+      console.warn('Backend inference error, fallback demo:', err);
       const preset = samplePresets[0];
-      setAnalysisResult(generatePresetResult(preset));
+      setAnalysisResult({ ...generatePresetResult(preset), is_live_inference: false, fallback_reason: err?.message || 'Backend connection error' });
     } finally {
       setIsAnalyzing(false);
     }

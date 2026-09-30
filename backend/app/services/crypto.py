@@ -33,7 +33,7 @@ def verify_ed25519_signature(
         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
         public_key.verify(sig_bytes, msg_bytes)
         return True
-    except Exception as e:
+    except Exception:
         # Fallback test if message was verified as hex bytes
         try:
             msg_bytes = bytes.fromhex(message_hex_or_str)
@@ -65,6 +65,11 @@ def generate_dev_keypair() -> Tuple[str, str]:
 def sign_canonical_hash(private_key_hex: str, report_hash_hex: str) -> str:
     """Signs report hash with Ed25519 private key."""
     priv_bytes = bytes.fromhex(private_key_hex)
-    private_key = ed25519.Ed25519PrivateKey.from_private_bytes(priv_bytes)
+    private_key = ed25519.Ed25519PrivateKey.from_bytes(priv_bytes)
     sig = private_key.sign(report_hash_hex.encode("utf-8"))
     return sig.hex()
+
+
+# Convenience aliases
+generate_ed25519_keypair = generate_dev_keypair
+sign_hash_ed25519 = sign_canonical_hash
