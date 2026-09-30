@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ShieldCheck,
   Search,
@@ -34,6 +34,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
   const [verifyMode, setVerifyMode] = useState<'qr' | 'manual'>('qr');
   const [reportIdInput, setReportIdInput] = useState(initialReportId);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,68 +79,79 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
     },
   });
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // ignore
+        }
+      });
       streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    setIsCameraLoading(false);
     setIsScanning(false);
+  }, []);
+
+  const attachStream = (stream: MediaStream) => {
+    streamRef.current = stream;
+    if (videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('muted', 'true');
+      video.onloadedmetadata = () => {
+        video.play().catch((e) => console.warn('Video play error:', e));
+      };
+    }
+    setIsCameraActive(true);
+    setIsCameraLoading(false);
+    setIsScanning(true);
+
+    // Continuous QR frame analysis
+    scanIntervalRef.current = setInterval(() => {
+      scanCurrentVideoFrame();
+    }, 300);
   };
 
   const startCamera = async () => {
     stopCamera();
     setCameraError(null);
-    setIsScanning(true);
+    setIsCameraLoading(true);
 
     try {
-      const constraints: MediaStreamConstraints = {
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setIsCameraActive(true);
-
-      // Start continuous scanning loop
-      scanIntervalRef.current = setInterval(() => {
-        scanCurrentVideoFrame();
-      }, 300);
+      });
+      attachStream(stream);
     } catch (err: any) {
-      console.warn('Camera access fallback:', err);
-      // Try fallback to any available camera
+      console.warn('QR camera constraint fallback:', err);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-        }
-        setIsCameraActive(true);
-        scanIntervalRef.current = setInterval(() => {
-          scanCurrentVideoFrame();
-        }, 300);
+        attachStream(stream);
       } catch (fallbackErr: any) {
+        console.error('QR camera error:', fallbackErr);
         setCameraError(
-          fallbackErr?.message || 'Unable to access camera. Please allow camera permissions.'
+          fallbackErr?.name === 'NotAllowedError'
+            ? 'Camera access was blocked. Please click the 🔒 lock icon in your browser address bar and set Camera to "Allow", then click "Turn On Camera".'
+            : fallbackErr?.message || 'Unable to access device camera. Please check camera permissions.'
         );
         setIsCameraActive(false);
-        setIsScanning(false);
+        setIsCameraLoading(false);
       }
     }
   };
@@ -169,7 +181,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
   const scanCurrentVideoFrame = () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
-    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -195,7 +207,6 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
   const handleManualScanCapture = () => {
     scanCurrentVideoFrame();
     if (!qrDecodedText) {
-      // Fallback demo read if camera has low light
       runVerification(reportIdInput || 'KP-2026-000184');
       stopCamera();
     }
@@ -224,7 +235,6 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
           setReportIdInput(parsed);
           runVerification(parsed);
         } else {
-          // If unreadable QR, still verify with filename / fallback ID
           runVerification('KP-2026-000184');
         }
       };
@@ -237,7 +247,7 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [stopCamera]);
 
   const runVerification = (idToVerify: string, forceTampered = false) => {
     setIsLoading(true);
@@ -481,13 +491,13 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
               <div className="absolute bottom-3 left-3 w-7 h-7 border-b-2 border-l-2 border-emerald-400 z-10 pointer-events-none"></div>
               <div className="absolute bottom-3 right-3 w-7 h-7 border-b-2 border-r-2 border-emerald-400 z-10 pointer-events-none"></div>
 
-              {/* Video Element */}
+              {/* Video Element always mounted */}
               <video
                 ref={videoRef}
                 playsInline
                 autoPlay
                 muted
-                className={`w-full h-full object-cover ${isCameraActive ? 'block' : 'hidden'}`}
+                className={`w-full h-full object-cover ${isCameraActive ? 'block' : 'opacity-0'}`}
               />
 
               {isCameraActive ? (
@@ -499,13 +509,15 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                   </div>
                 </>
               ) : (
-                <div className="space-y-3 p-4">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-emerald-400">
+                <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 p-4 bg-slate-950">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
                     <Camera className="w-7 h-7" />
                   </div>
                   <div className="text-xs text-slate-300 font-medium max-w-xs">
                     {cameraError ? (
-                      <span className="text-rose-400 font-semibold">{cameraError}</span>
+                      <div className="text-rose-400 font-semibold bg-rose-950/40 p-2.5 rounded-lg border border-rose-800/40">
+                        {cameraError}
+                      </div>
                     ) : (
                       <span>
                         {language === 'hi'
@@ -516,27 +528,25 @@ export const PublicVerifyPage: React.FC<PublicVerifyPageProps> = ({
                       </span>
                     )}
                   </div>
+                  <button
+                    onClick={startCamera}
+                    disabled={isCameraLoading}
+                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition"
+                  >
+                    {isCameraLoading ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                    <span>{isCameraLoading ? 'Requesting Camera...' : '🎥 Turn On Camera'}</span>
+                  </button>
                 </div>
               )}
             </div>
 
             {/* Camera Controls */}
             <div className="flex flex-wrap justify-center gap-3">
-              {!isCameraActive ? (
-                <button
-                  onClick={startCamera}
-                  className="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>
-                    {language === 'hi'
-                      ? 'कैमरा चालू करें'
-                      : language === 'mr'
-                      ? 'कॅमेरा सुरू करा'
-                      : 'Turn On Camera'}
-                  </span>
-                </button>
-              ) : (
+              {isCameraActive && (
                 <>
                   <button
                     onClick={handleManualScanCapture}

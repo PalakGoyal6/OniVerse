@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Upload,
   CheckCircle2,
@@ -30,6 +30,7 @@ export const AiTestingLabPage: React.FC = () => {
 
   // Live Camera state
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [isCameraLoading, setIsCameraLoading] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -102,51 +103,69 @@ export const AiTestingLabPage: React.FC = () => {
     },
   ];
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // ignore
+        }
+      });
       streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    setIsCameraLoading(false);
+  }, []);
+
+  const attachStreamToVideo = (stream: MediaStream) => {
+    streamRef.current = stream;
+    if (videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('muted', 'true');
+      video.onloadedmetadata = () => {
+        video.play().catch((e) => console.warn('Video play error:', e));
+      };
+    }
+    setIsCameraActive(true);
+    setIsCameraLoading(false);
   };
 
   const startCamera = async () => {
     stopCamera();
     setCameraError(null);
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      };
+    setIsCameraLoading(true);
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setIsCameraActive(true);
+    try {
+      // First try standard flexible constraints
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      attachStreamToVideo(stream);
     } catch (err: any) {
-      console.warn('Camera facingMode fallback:', err);
+      console.warn('Initial camera constraint attempt failed, trying fallback {video: true}:', err);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-        }
-        setIsCameraActive(true);
+        attachStreamToVideo(stream);
       } catch (fallbackErr: any) {
+        console.error('Webcam permission / device error:', fallbackErr);
         setCameraError(
-          fallbackErr?.message || 'Unable to access device camera. Please allow webcam permissions.'
+          fallbackErr?.name === 'NotAllowedError'
+            ? 'Camera access was blocked. Please click the 🔒 lock icon in your browser address bar and set Camera to "Allow", then try again.'
+            : fallbackErr?.message || 'Unable to access device camera. Please check camera permissions.'
         );
         setIsCameraActive(false);
+        setIsCameraLoading(false);
       }
     }
   };
@@ -154,7 +173,10 @@ export const AiTestingLabPage: React.FC = () => {
   const handleCapturePhoto = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
-    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraError('Camera stream is still initializing. Please wait a second.');
+      return;
+    }
 
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 1280;
@@ -238,15 +260,10 @@ export const AiTestingLabPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'camera') {
-      startCamera();
-    } else {
-      stopCamera();
-    }
     return () => {
       stopCamera();
     };
-  }, [activeTab]);
+  }, [stopCamera]);
 
   const generatePresetResult = (preset: any) => {
     const onions = [];
@@ -348,7 +365,9 @@ export const AiTestingLabPage: React.FC = () => {
           {/* Top Mode Selector Tabs */}
           <div className="flex p-1 bg-white rounded-2xl border border-slate-200 shadow-sm">
             <button
-              onClick={() => setActiveTab('camera')}
+              onClick={() => {
+                setActiveTab('camera');
+              }}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                 activeTab === 'camera'
                   ? 'bg-emerald-800 text-white shadow-sm'
@@ -359,7 +378,10 @@ export const AiTestingLabPage: React.FC = () => {
               <span>{language === 'hi' ? 'लाइव कैमरा' : language === 'mr' ? 'कॅमेरा' : 'Live Camera'}</span>
             </button>
             <button
-              onClick={() => setActiveTab('upload')}
+              onClick={() => {
+                stopCamera();
+                setActiveTab('upload');
+              }}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                 activeTab === 'upload'
                   ? 'bg-emerald-800 text-white shadow-sm'
@@ -370,7 +392,10 @@ export const AiTestingLabPage: React.FC = () => {
               <span>{language === 'hi' ? 'फोटो अपलोड' : language === 'mr' ? 'अपलोड' : 'Upload File'}</span>
             </button>
             <button
-              onClick={() => setActiveTab('preset')}
+              onClick={() => {
+                stopCamera();
+                setActiveTab('preset');
+              }}
               className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                 activeTab === 'preset'
                   ? 'bg-emerald-800 text-white shadow-sm'
@@ -389,10 +414,15 @@ export const AiTestingLabPage: React.FC = () => {
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                   {language === 'hi' ? 'लाइव कैमरा दृश्य' : language === 'mr' ? 'थेट कॅमेरा' : 'Device Camera Viewfinder'}
                 </h3>
-                <span className="text-[10px] text-emerald-800 font-bold">Live Stream</span>
+                {isCameraActive && (
+                  <span className="text-[10px] text-emerald-800 font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Live Streaming
+                  </span>
+                )}
               </div>
 
-              {/* Video Box */}
+              {/* Viewfinder Video Element (Always present in DOM to maintain ref) */}
               <div className="relative w-full h-64 rounded-xl bg-slate-950 border-2 border-emerald-600 overflow-hidden flex flex-col items-center justify-center shadow-inner">
                 {/* Viewfinder crosshairs */}
                 <div className="absolute top-2.5 left-2.5 w-5 h-5 border-t-2 border-l-2 border-emerald-400 z-10 pointer-events-none"></div>
@@ -405,37 +435,47 @@ export const AiTestingLabPage: React.FC = () => {
                   playsInline
                   autoPlay
                   muted
-                  className={`w-full h-full object-cover ${isCameraActive ? 'block' : 'hidden'}`}
+                  className={`w-full h-full object-cover ${isCameraActive ? 'block' : 'opacity-0'}`}
                 />
 
                 {!isCameraActive && (
-                  <div className="text-center p-4 space-y-2">
-                    <Camera className="w-8 h-8 text-slate-500 mx-auto" />
-                    <p className="text-xs text-slate-400 max-w-xs">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 space-y-3 bg-slate-950">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <div className="text-xs text-slate-300 max-w-xs leading-relaxed">
                       {cameraError ? (
-                        <span className="text-rose-400 font-bold">{cameraError}</span>
+                        <div className="text-rose-400 font-semibold bg-rose-950/40 p-2.5 rounded-lg border border-rose-800/40">
+                          {cameraError}
+                        </div>
                       ) : (
-                        'Camera is currently paused or inactive.'
+                        <span>
+                          {language === 'hi'
+                            ? 'कैमरा खोलने के लिए नीचे दिए गए बटन पर क्लिक करें।'
+                            : language === 'mr'
+                            ? 'कॅमेरा सुरू करण्यासाठी खालील बटणावर क्लिक करा.'
+                            : 'Click "Start Camera" below to grant webcam access and view live feed.'}
+                        </span>
                       )}
-                    </p>
+                    </div>
                     <button
                       onClick={startCamera}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                      disabled={isCameraLoading}
+                      className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2"
                     >
-                      Start Camera
+                      {isCameraLoading ? (
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5" />
+                      )}
+                      <span>{isCameraLoading ? 'Requesting Camera...' : '🎥 Start Camera'}</span>
                     </button>
-                  </div>
-                )}
-
-                {isCameraActive && (
-                  <div className="absolute bottom-2 left-2 bg-slate-900/80 px-2.5 py-1 rounded-lg text-[10px] font-mono text-emerald-400 border border-emerald-500/20">
-                    Live Feed Active
                   </div>
                 )}
               </div>
 
               {/* Camera Action Buttons */}
-              {isCameraActive ? (
+              {isCameraActive && (
                 <div className="flex gap-2">
                   <button
                     onClick={handleCapturePhoto}
@@ -460,19 +500,11 @@ export const AiTestingLabPage: React.FC = () => {
                   <button
                     onClick={stopCamera}
                     className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-                    title="Pause Camera"
+                    title="Stop Camera"
                   >
                     <VideoOff className="w-4 h-4" />
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={startCamera}
-                  className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-2 transition"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Re-open Camera</span>
-                </button>
               )}
             </div>
           )}
@@ -580,7 +612,7 @@ export const AiTestingLabPage: React.FC = () => {
             <div className="panel-card p-3 flex items-center gap-3">
               <img
                 src={imagePreview}
-                alt="Active Captured"
+                alt="Active Graded"
                 className="w-14 h-14 rounded-lg object-cover border border-slate-200"
               />
               <div className="flex-1 min-w-0">
