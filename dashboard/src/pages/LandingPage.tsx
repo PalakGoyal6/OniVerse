@@ -69,15 +69,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   const pillars = [
     {
-      title: 'Zero Human Grading Bias',
+      title: 'Reduced Grading Variance',
       value: '< 0.4%',
-      desc: 'Down from 21.2% manual inspector variance in APMC mandis.',
+      desc: 'App rescan consistency across 10 trials, vs 21.2% manual inspector spread.',
       icon: Scale,
     },
     {
       title: 'Physical Millimeter Sizing',
       value: '1.42 mm',
-      desc: 'True contour dimensions and 3D ellipsoidal weight estimation.',
+      desc: 'Contour sizing MAE (marker homography) and estimated 3D ellipsoidal weight.',
       icon: Target,
     },
     {
@@ -87,9 +87,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       icon: Zap,
     },
     {
-      title: 'Cryptographic Audit Trail',
+      title: 'Tamper-Evident Audit Trail',
       value: 'SHA-256',
-      desc: 'Every supervisor override is recorded in an immutable audit ledger.',
+      desc: 'Every supervisor override is recorded in a hash-chained audit log.',
       icon: ShieldCheck,
     },
   ];

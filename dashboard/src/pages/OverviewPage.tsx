@@ -104,11 +104,20 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       {/* Header + Time Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black uppercase tracking-wider">
+              {language === 'hi' ? 'नमूना डेटा मोड' : language === 'mr' ? 'डेमो डेटा मोड' : 'Sample Demonstration Data'}
+            </span>
+          </div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
             {t('regionalOverviewTitle')}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            {t('regionalOverviewSubtitle')}
+            {language === 'hi'
+              ? 'नासिक मंडल की 6 मंडियों का सांकेतिक खरीद डेटा (मूल्यांकन हेतु सिमुलेटेड)'
+              : language === 'mr'
+              ? 'नाशिक विभागातील ६ बाजार समित्यांची प्रात्यक्षिक माहिती'
+              : 'Aggregated sample procurement & quality feed from 6 Nashik Division mandis (Simulated for evaluation)'}
           </p>
         </div>
 

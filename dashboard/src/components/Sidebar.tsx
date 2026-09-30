@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'audit',
       label: t('navAudit'),
       icon: FileSearch,
-      badge: language === 'hi' ? 'सीलबंद' : language === 'mr' ? 'सुरक्षित' : 'Sealed',
+      badge: language === 'hi' ? 'हैश-चेन' : language === 'mr' ? 'हॅश-साखळी' : 'Hash-Chained',
     },
     { id: 'verify', label: t('navVerify'), icon: Search },
     { id: 'settings', label: t('navSettings'), icon: Settings },
@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex items-center gap-2 text-xs text-emerald-800 font-bold">
           <CheckCircle className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-          <span>{language === 'hi' ? 'एगमार्क 2026.1 सक्रिय' : language === 'mr' ? 'एगमार्क 2026.1 सक्रिय' : 'AGMARK 2026.1 Active'}</span>
+          <span>{language === 'hi' ? 'एगमार्क-अनुरूप नियम सक्रिय' : language === 'mr' ? 'एगमार्क-अनुरूप नियम सक्रिय' : 'AGMARK-Aligned Rules'}</span>
         </div>
         <div className="text-[10px] text-slate-500 font-medium">
           Smart India Hackathon • SIH 2026

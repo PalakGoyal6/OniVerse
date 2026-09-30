@@ -60,14 +60,14 @@ export const translations: Translations = {
     mr: 'तक्रार निवारण कक्ष',
   },
   navRules: {
-    en: 'AGMARK Rules',
-    hi: 'एगमार्क नियम',
-    mr: 'एगमार्क नियम',
+    en: 'Grading Rules Editor',
+    hi: 'ग्रेडिंग नियम संपादक',
+    mr: 'प्रतवारी नियम संपादक',
   },
   navAudit: {
-    en: 'Cryptographic Ledger',
-    hi: 'सुरक्षित ऑडिट लेजर',
-    mr: 'सुरक्षित ऑडिट नोंदवही',
+    en: 'Tamper-Evident Audit Log',
+    hi: 'हैश-चेन ऑडिट लॉग',
+    mr: 'हॅश-साखळी ऑडिट नोंद',
   },
   navVerify: {
     en: 'Public Report Verifier',

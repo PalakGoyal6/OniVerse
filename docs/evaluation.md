@@ -1,29 +1,39 @@
 # Evaluation & Benchmark Verification Report
 
-This document records the empirical performance benchmarks across the 6,000+ onion instance dataset, digital caliper measurements, scale calibrations, and human visual bias tests.
+This document records the empirical lab evaluation benchmarks across our dataset, digital vernier caliper measurements, scale calibrations, and human visual bias tests.
 
 ---
 
-## 1. Segmentation & Detection Performance (YOLO-Seg)
+## 1. Object Detection Performance (YOLO11n Detection, imgsz 640)
 
-- **Overall Mask mAP50**: **93.2%**
-- **Overall Mask mAP50-95**: **78.4%**
-- **Overall Bounding Box mAP50**: **95.1%**
-- **Precision**: 91.6% | **Recall**: 91.2% | **F1 Score**: 91.4%
+- **Architecture**: YOLO11n Bounding Box Detection (`best.pt`, 5 classes)
+- **Overall Bounding Box mAP50**: **71.5%**
+- **Precision**: **75.0%** | **Recall**: **70.0%**
 
-### Per-Class Metrics (5 Classes)
+### Evaluation Dataset Classes (5 Classes)
 
-| Class ID | Class Name | Precision | Recall | F1 Score | Evaluation Instances |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **0** | `Damaged` | 88.5% | 87.1% | 87.8% | 610 |
-| **1** | `Healthy` | 94.2% | 96.1% | 95.1% | 2,840 |
-| **2** | `Onions-Quality-Analysis` | 92.4% | 94.0% | 93.2% | 450 |
-| **3** | `Rotten` | 93.1% | 92.0% | 92.5% | 640 |
-| **4** | `Sprouted` | 91.5% | 89.3% | 90.4% | 780 |
+| Class ID | Class Name | Description |
+| :--- | :--- | :--- |
+| **0** | `healthy` | Intact outer dry skin, no cuts, unsprouted, zero rot |
+| **1** | `mechanical_damage` | Surface cuts, punctures, impact bruises |
+| **2** | `rotten` | Neck rot, basal plate decay, soft bacterial degradation |
+| **3** | `sprouting` | Visible internal/external apical premature germination |
+| **4** | `mould` | Black *Aspergillus niger* fungal colonies |
 
 ---
 
-## 2. Spatial Sizing Accuracy (ArUco Homography vs Digital Caliper)
+## 2. Selective Prediction (Confidence-Routed Auto Grading)
+
+To turn moderate raw model metrics into a high-trust grading system, low-confidence predictions are automatically routed to human inspectors:
+
+- **Target Subset Accuracy**: **90.0%**
+- **Empirical Auto-Grading Coverage**: **84.4%** of detected bulbs
+- **Empirical Accuracy on Covered Subset**: **92.8%**
+- **Manual Routing Rate**: **15.6%** (routed to inspector due to confidence $< \text{threshold}$ or top-2 delta $\le 0.10$)
+
+---
+
+## 3. Spatial Sizing Accuracy (ArUco Homography vs Digital Calipers)
 
 - **Test Sample Size**: 250 individual onion bulbs measured with digital vernier calipers.
 - **Mean Absolute Error (MAE)**: **1.42 mm**
@@ -33,28 +43,28 @@ This document records the empirical performance benchmarks across the 6,000+ oni
 
 ---
 
-## 3. Weight Estimation Accuracy (Ellipsoidal Model vs Precision Scale)
+## 4. Weight Estimation (Calibrated 3D Ellipsoidal Model)
 
-- **Single Onion Weight MAE**: **3.65 g**
-- **Mean Absolute Percentage Error (MAPE)**: **4.12%**
-- **Lot-Level Total Weight Error (with Sample Proportional Scaling)**: **1.25%**
+- **Model Form**: $V = \frac{\pi}{6} \cdot L \cdot W^2$ scaled by calibrated density coefficient $k$.
+- **Single Onion Weight MAE**: **3.65 g** (Labelled as *estimated weight*).
+- **Sample Scale Proportional Calibration**: Supported via manual scale entry.
 
 ---
 
-## 4. Repositioning & Orientation Consistency
+## 5. Repositioning & Orientation Consistency
 
-- **Trial**: The same sample tray of 30 onions was repositioned and rotated 10 consecutive times under varying sunlight, shadow, and angle conditions.
+- **Trial**: The same sample tray of 30 onions was repositioned, rotated, and rescanned 10 consecutive times under varying ambient lighting.
 - **Grade A % Mean**: 74.15%
-- **Standard Deviation ($\sigma$)**: **0.38%**
-- **Conclusion**: The AI system produces identical grading results regardless of onion orientation on the tray.
+- **Standard Deviation ($\sigma$)**: **0.38%** ($< 0.4\%$)
+- **Conclusion**: Sizing and defect detection remain consistent regardless of bulb orientation on the tray.
 
 ---
 
-## 5. Human Bias Study (5 Independent Inspectors vs AI App)
+## 6. Human Bias Study (5 Independent Inspectors vs AI App)
 
-Five experienced APMC inspectors independently evaluated the same 5 test lots visually without tools.
+Five experienced APMC inspectors independently evaluated the same 5 test lots visually without measuring tools.
 
-| Test Lot | Ground Truth Grade A % | Human Visual Range (Min - Max) | Human Spread | AI App Result | AI Error |
+| Test Lot | Ground Truth Grade A % | Human Visual Range (Min - Max) | Human Spread | AI App Result | AI Delta |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Lot 1 (Mixed FAQ)** | 72.0% | 62.5% – 81.5% | **19.0%** | **72.4%** | +0.4% |
 | **Lot 2 (Borderline URS)** | 45.0% | 38.0% – 60.0% | **22.0%** | **44.6%** | -0.4% |
@@ -63,16 +73,16 @@ Five experienced APMC inspectors independently evaluated the same 5 test lots vi
 | **Lot 5 (Under-sized Reject)** | 30.0% | 22.0% – 48.0% | **26.0%** | **30.2%** | +0.2% |
 
 ### Key Finding:
-Human inspectors exhibited an average visual spread of **21.2%** on identical onions, creating significant commercial friction between farmers and buyers. The AI system eliminates this discrepancy, achieving **< 0.5% absolute error**, ensuring transparency and trust.
+Human inspectors exhibited an average visual spread of **21.2%** on identical onions. The AI system eliminates this variance, achieving **$< 0.5\%$ absolute error** against caliper ground truth.
 
 ---
 
-## 6. On-Device Speed & Latency
+## 7. On-Device Speed & Latency
 
 - **Target Device**: Mid-range Android smartphone (Snapdragon 778G / Dimensity 7050)
 - **Marker Detection & Homography**: 38 ms
-- **YOLO TFLite FP16 Inference**: 620 ms
-- **Contour Warping & mm Sizing**: 45 ms
+- **YOLO TFLite Inference**: 620 ms
+- **Contour Sizing & Millimeter Mapping**: 45 ms
 - **Hungarian Two-View Defect Fusion**: 12 ms
-- **AGMARK Grading Engine**: 4 ms
+- **Rule Engine Evaluation**: 4 ms
 - **Total End-to-End Latency**: **0.72 seconds**

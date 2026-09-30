@@ -58,21 +58,21 @@ export const SettingsPage: React.FC = () => {
               <div className="p-3 bg-white rounded-xl border border-slate-200">
                 <span className="text-slate-400 block text-[11px]">Model Architecture</span>
                 <span className="font-bold text-slate-800 font-mono text-sm">
-                  YOLOv8n-Seg (TFLite / PyTorch)
+                  YOLO11n Detection (imgsz 640)
                 </span>
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <span className="text-slate-400 block text-[11px]">Model Version &amp; Checksum</span>
+                <span className="text-slate-400 block text-[11px]">Model Weights &amp; Checksum</span>
                 <span className="font-bold text-slate-800 font-mono">
-                  v1.0.0 (1b1455de...0ae9)
+                  best.pt (1b1455de...0ae9)
                 </span>
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <span className="text-slate-400 block text-[11px]">Certified Dataset Classes</span>
+                <span className="text-slate-400 block text-[11px]">Evaluation Dataset Classes</span>
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {['Healthy', 'Damaged', 'Rotten', 'Sprouted', 'Mold'].map((c, i) => (
+                  {['0: Healthy', '1: Mechanical Damage', '2: Rotten', '3: Sprouting', '4: Mould'].map((c, i) => (
                     <span
                       key={i}
                       className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[10px] border border-slate-200"
@@ -84,24 +84,24 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <span className="text-slate-400 block text-[11px]">Rules Engine Version</span>
-                <span className="font-bold text-emerald-700">AGMARK 2026.1 (Standard)</span>
+                <span className="text-slate-400 block text-[11px]">Grading Rules Standard</span>
+                <span className="font-bold text-emerald-700">AGMARK-Aligned (Configurable defaults)</span>
               </div>
             </div>
 
             {/* Real Evaluation Accuracy */}
             <div className="mt-5 pt-4 border-t border-emerald-200/60">
               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-2">
-                Certified Benchmark Accuracy
+                Lab Evaluation Benchmark
               </span>
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="p-2.5 bg-emerald-100/60 rounded-lg border border-emerald-200">
                   <div className="text-lg font-black text-emerald-900">1.42 mm</div>
-                  <div className="text-[10px] text-emerald-800 font-medium">Sizing MAE</div>
+                  <div className="text-[10px] text-emerald-800 font-medium">Sizing MAE (Marker)</div>
                 </div>
                 <div className="p-2.5 bg-emerald-100/60 rounded-lg border border-emerald-200">
-                  <div className="text-lg font-black text-emerald-900">94.6%</div>
-                  <div className="text-[10px] text-emerald-800 font-medium">mAP@50 Precision</div>
+                  <div className="text-lg font-black text-emerald-900">~71.5%</div>
+                  <div className="text-[10px] text-emerald-800 font-medium">mAP@50 (Prec: 75%, Rec: 70%)</div>
                 </div>
               </div>
             </div>
@@ -111,8 +111,8 @@ export const SettingsPage: React.FC = () => {
           <div className="panel-card p-5 text-xs text-slate-600 flex items-start gap-3 bg-slate-50">
             <Shield className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
             <div>
-              <strong className="text-slate-900 block mb-1">Data Privacy &amp; Security</strong>
-              All lot grading and inspector logs are cryptographically sealed. Raw inspection images are preserved solely for audit dispute resolution.
+              <strong className="text-slate-900 block mb-1">Security &amp; Audit Trail</strong>
+              Tamper-evident audit log with Ed25519 digital signatures and canonical SHA-256 hashes. Any unauthorized modification to report numbers becomes immediately detectable.
             </div>
           </div>
         </div>

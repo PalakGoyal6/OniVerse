@@ -49,10 +49,10 @@ export const RulesEditorPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
-            AGMARK Grading Rules &amp; Tolerances
+            Grading Rules &amp; Tolerances Editor
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Single source of truth automatically synced over-the-air to all field inspector tablets.
+            Configurable parameters aligned with AGMARK standards. Adapt grading cutoffs to seasonal variations without retraining the AI model.
           </p>
         </div>
 
