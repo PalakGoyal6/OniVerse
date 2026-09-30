@@ -15,8 +15,10 @@ import {
   RefreshCw,
   Image as ImageIcon,
   Check,
+  Edit3,
 } from 'lucide-react';
 import { useLanguage } from '../i18n';
+import { OfficerResolutionModal } from '../components/OfficerResolutionModal';
 
 export const AiTestingLabPage: React.FC = () => {
   const { language } = useLanguage();
@@ -27,6 +29,7 @@ export const AiTestingLabPage: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [selectedOnion, setSelectedOnion] = useState<any | null>(null);
+  const [resolvingOnion, setResolvingOnion] = useState<any | null>(null);
 
   // Live Camera state
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
@@ -261,6 +264,170 @@ export const AiTestingLabPage: React.FC = () => {
         setIsAnalyzing(false);
       }, 500);
     }
+  };
+
+  const handleSaveResolution = (
+    onionId: string,
+    chosenClass: string,
+    reasonOption: string,
+    customReason: string
+  ) => {
+    if (!analysisResult) return;
+
+    const finalReason =
+      reasonOption === 'Other' ? customReason.trim() : reasonOption;
+
+    const prevOnions = [...analysisResult.onions];
+    const targetIndex = prevOnions.findIndex((o: any) => o.onion_id === onionId);
+    if (targetIndex === -1) return;
+
+    const oldOnion = prevOnions[targetIndex];
+
+    const isDefect = [
+      'Sprouting',
+      'Rotten',
+      'Mould',
+      'Mechanical damage',
+      'sprouting',
+      'rotten',
+      'mould',
+      'mechanical_damage',
+      'damaged',
+      'sprouted',
+    ].includes(chosenClass);
+
+    let newGrade = 'GRADE_A';
+    if (isDefect) {
+      newGrade = 'REJECTED';
+    } else {
+      if (oldOnion.diameter_mm !== null && oldOnion.diameter_mm !== undefined) {
+        if (oldOnion.diameter_mm >= 45) {
+          newGrade = 'GRADE_A';
+        } else if (oldOnion.diameter_mm >= 35) {
+          newGrade = 'URS';
+        } else {
+          newGrade = 'REJECTED';
+        }
+      } else {
+        newGrade = 'PENDING_MEASUREMENT';
+      }
+    }
+
+    const updatedOnion = {
+      ...oldOnion,
+      class: chosenClass,
+      grade: newGrade,
+      status: 'AUTO',
+      is_auto: true,
+      is_overridden: true,
+      original_class: oldOnion.original_class || oldOnion.class,
+      original_confidence: oldOnion.confidence,
+      override_reason: finalReason,
+      reason: `Officer Confirmed: ${finalReason} (${chosenClass}).`,
+    };
+
+    prevOnions[targetIndex] = updatedOnion;
+
+    // Recalculate summary percentages strictly on confirmed onions
+    const totalCount = prevOnions.length;
+    const confirmedOnions = prevOnions.filter((o: any) => o.status === 'AUTO');
+    const autoCount = confirmedOnions.length;
+    const needsCheckCount = totalCount - autoCount;
+
+    let gradeAPct = 0;
+    let ursPct = 0;
+    let rejectedPct = 0;
+
+    if (autoCount > 0) {
+      const confirmedA = confirmedOnions.filter((o: any) => o.grade === 'GRADE_A').length;
+      const confirmedUrs = confirmedOnions.filter((o: any) => o.grade === 'URS').length;
+      const confirmedRej = confirmedOnions.filter((o: any) => o.grade === 'REJECTED').length;
+
+      gradeAPct = Math.round((confirmedA / autoCount) * 1000) / 10;
+      ursPct = Math.round((confirmedUrs / autoCount) * 1000) / 10;
+      rejectedPct = Math.round((confirmedRej / autoCount) * 1000) / 10;
+    }
+
+    // Verdict calculation
+    let lotVerdict = 'GRADE_A';
+    if (totalCount === 0) {
+      lotVerdict = 'NO_ONIONS_DETECTED';
+    } else if (autoCount === 0) {
+      lotVerdict = `PENDING_REVIEW (${needsCheckCount} pending review)`;
+    } else {
+      let baseVerdict = 'GRADE_A';
+      if (rejectedPct > 15.0) {
+        baseVerdict = 'REJECTED';
+      } else if (ursPct > 30.0) {
+        baseVerdict = 'URS';
+      } else {
+        baseVerdict = 'GRADE_A';
+      }
+
+      if (needsCheckCount > 0) {
+        lotVerdict = `${baseVerdict} (provisional — ${needsCheckCount} pending review)`;
+      } else {
+        lotVerdict = baseVerdict;
+      }
+    }
+
+    // Storage Risk calculation
+    let riskScore: number | null = null;
+    let riskBand = 'PENDING';
+    let riskRec =
+      'Storage suitability assessment is pending officer review and defect confirmation.';
+
+    if (totalCount > 0 && autoCount > 0) {
+      if (rejectedPct > 25.0) {
+        riskScore = 78;
+        riskBand = 'HIGH';
+        riskRec =
+          'High spoilage risk (apical sprouting / rot detected). Dispatch immediately for distribution.';
+      } else if (ursPct > 30.0 || rejectedPct > 10.0) {
+        riskScore = 42;
+        riskBand = 'MEDIUM';
+        riskRec = 'Moderate risk. Short-term storage (1–2 months). Inspect bi-weekly.';
+      } else {
+        riskScore = 16;
+        riskBand = 'LOW';
+        riskRec = 'Suitable for buffer stock storage (3–5 months with active aeration).';
+      }
+    }
+
+    const existingOverrides = analysisResult.overrides || [];
+    const newOverrideRecord = {
+      onion_id: onionId,
+      original_class: oldOnion.class,
+      overridden_class: chosenClass,
+      original_confidence: oldOnion.confidence,
+      reason: finalReason,
+      created_at: new Date().toISOString(),
+    };
+
+    const updatedResult = {
+      ...analysisResult,
+      summary: {
+        ...analysisResult.summary,
+        grade_a_pct: gradeAPct,
+        urs_pct: ursPct,
+        rejected_pct: rejectedPct,
+        auto_graded_count: autoCount,
+        needs_check_count: needsCheckCount,
+        summary_status_text: `${autoCount} of ${totalCount} auto-graded • ${needsCheckCount} need your check`,
+        lot_verdict: lotVerdict,
+      },
+      storage_risk: {
+        score: riskScore,
+        band: riskBand,
+        recommendation: riskRec,
+      },
+      onions: prevOnions,
+      overrides: [...existingOverrides, newOverrideRecord],
+    };
+
+    setAnalysisResult(updatedResult);
+    setSelectedOnion(updatedOnion);
+    setResolvingOnion(null);
   };
 
   useEffect(() => {
@@ -835,7 +1002,7 @@ export const AiTestingLabPage: React.FC = () => {
                         Detected Instances ({analysisResult.onions.length} Bulbs)
                       </h3>
                       <span className="text-[11px] text-slate-400">
-                        Click any bulb for sizing &amp; rule reasons
+                        Click pending bulbs to inspect crop &amp; resolve
                       </span>
                     </div>
 
@@ -843,15 +1010,24 @@ export const AiTestingLabPage: React.FC = () => {
                       {analysisResult.onions.map((o: any) => {
                         const isDefect = o.class !== 'healthy' && o.class !== 'Healthy';
                         const isPending = o.status === 'NEEDS_MANUAL_CHECK';
+                        const isOverridden = Boolean(o.is_overridden || o.override_reason);
+
                         return (
                           <button
                             key={o.onion_id}
-                            onClick={() => setSelectedOnion(o)}
-                            className={`p-3 rounded-xl border text-left transition ${
+                            onClick={() => {
+                              setSelectedOnion(o);
+                              if (isPending) {
+                                setResolvingOnion(o);
+                              }
+                            }}
+                            className={`p-3 rounded-xl border text-left transition relative ${
                               selectedOnion?.onion_id === o.onion_id
                                 ? 'ring-2 ring-emerald-600 bg-emerald-50/40'
                                 : isPending
-                                ? 'bg-amber-50/30 hover:bg-white border-amber-200'
+                                ? 'bg-amber-50/60 hover:bg-amber-50 border-amber-300 shadow-sm'
+                                : isOverridden
+                                ? 'bg-purple-50/40 hover:bg-purple-50/70 border-purple-200'
                                 : 'bg-slate-50 hover:bg-white border-slate-200'
                             }`}
                           >
@@ -859,10 +1035,18 @@ export const AiTestingLabPage: React.FC = () => {
                               <span className="text-[11px] font-mono font-bold text-slate-700">
                                 {o.onion_id}
                               </span>
-                              <div className="flex items-center gap-1.5">
-                                {isPending && (
-                                  <span className="text-[8px] font-bold uppercase bg-amber-100 text-amber-800 px-1 py-0.2 rounded">
+                              <div className="flex items-center gap-1">
+                                {isPending ? (
+                                  <span className="text-[8px] font-bold uppercase bg-amber-200 text-amber-950 px-1.5 py-0.5 rounded animate-pulse">
                                     Pending
+                                  </span>
+                                ) : isOverridden ? (
+                                  <span className="text-[8px] font-bold uppercase bg-purple-100 text-purple-900 px-1.5 py-0.5 rounded">
+                                    Confirmed
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] font-bold uppercase bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded">
+                                    Auto
                                   </span>
                                 )}
                                 <span
@@ -904,6 +1088,12 @@ export const AiTestingLabPage: React.FC = () => {
                                 {(o.confidence * 100).toFixed(0)}%
                               </span>
                             </div>
+
+                            {isPending && (
+                              <div className="mt-2 text-[9px] font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded text-center">
+                                🔍 Click to Resolve
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -914,8 +1104,8 @@ export const AiTestingLabPage: React.FC = () => {
 
               {/* Selected Bulb Details */}
               {selectedOnion && (
-                <div className="p-4 rounded-xl bg-white border border-slate-300 shadow-sm space-y-2.5">
-                  <div className="flex items-center justify-between">
+                <div className="p-4 rounded-xl bg-white border border-slate-300 shadow-sm space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-mono">
                         {selectedOnion.onion_id}
@@ -924,9 +1114,27 @@ export const AiTestingLabPage: React.FC = () => {
                         Class: {selectedOnion.class.toUpperCase()} • Grade: {selectedOnion.grade}
                       </span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-emerald-800">
-                      Confidence: {(selectedOnion.confidence * 100).toFixed(1)}%
-                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-emerald-800">
+                        Confidence: {(selectedOnion.confidence * 100).toFixed(1)}%
+                      </span>
+                      <button
+                        onClick={() => setResolvingOnion(selectedOnion)}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition ${
+                          selectedOnion.status === 'NEEDS_MANUAL_CHECK'
+                            ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>
+                          {selectedOnion.status === 'NEEDS_MANUAL_CHECK'
+                            ? 'Resolve & Confirm Bulb'
+                            : 'Edit Resolution'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-xs text-center">
@@ -953,7 +1161,7 @@ export const AiTestingLabPage: React.FC = () => {
                           selectedOnion.status === 'AUTO' ? 'text-emerald-700' : 'text-amber-700'
                         }`}
                       >
-                        {selectedOnion.status === 'AUTO' ? 'AUTO-GRADED' : 'PENDING CHECK'}
+                        {selectedOnion.status === 'AUTO' ? 'CONFIRMED' : 'PENDING CHECK'}
                       </div>
                     </div>
                   </div>
@@ -978,6 +1186,15 @@ export const AiTestingLabPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Officer Resolution & Override Modal */}
+      <OfficerResolutionModal
+        onion={resolvingOnion}
+        imageSrc={imagePreview}
+        isOpen={Boolean(resolvingOnion)}
+        onClose={() => setResolvingOnion(null)}
+        onSave={handleSaveResolution}
+      />
     </div>
   );
 };

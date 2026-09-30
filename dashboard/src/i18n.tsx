@@ -13,9 +13,9 @@ interface Translations {
 export const translations: Translations = {
   // Brand & Header
   appTitle: {
-    en: 'AGRI-GRADE AI',
-    hi: 'एग्री-ग्रेड एआई',
-    mr: 'ॲग्री-ग्रेड एआय',
+    en: 'OniVerse',
+    hi: 'ओनीवर्स (OniVerse)',
+    mr: 'ओनिव्हर्स (OniVerse)',
   },
   departmentLabel: {
     en: 'Department of Consumer Affairs • AI Quality Intelligence',

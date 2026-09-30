@@ -131,6 +131,7 @@ class TwoViewMatcher:
                     "view_conflict": view_conflict,
                     "front_class": f_item["class_name"],
                     "back_class": b_item["class_name"],
+                    "bbox_xyxy": f_item.get("bbox_xyxy"),
                     "explanation_notes": notes,
                 })
             else:

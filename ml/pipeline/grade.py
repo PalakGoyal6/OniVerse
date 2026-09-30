@@ -120,6 +120,7 @@ class GradingEngine:
             "reasons": reasons,
             "fused_views": onion.get("fused_views", ["front"]),
             "centroid_mm": onion.get("centroid_mm", [0.0, 0.0]),
+            "bbox_xyxy": onion.get("bbox_xyxy"),
             "marker_detected": marker_detected,
         }
 

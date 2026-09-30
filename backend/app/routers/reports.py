@@ -211,6 +211,7 @@ async def analyze_onion_images(
             "estimated_weight_g": wt,
             "grade": grade,
             "reason": reason_str,
+            "bbox_xyxy": o.get("bbox_xyxy"),
             "marker_detected": o.get("marker_detected", dia is not None),
         })
 

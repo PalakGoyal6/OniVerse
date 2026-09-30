@@ -57,7 +57,7 @@ export const OnionLogo: React.FC<OnionLogoProps> = ({ size = 'md', showSubtext =
       <div>
         <div className="flex items-center gap-2">
           <span className="font-extrabold text-sm tracking-tight text-slate-900">
-            AGRI-GRADE AI
+            OniVerse
           </span>
           <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200">
             MANDI 2.0

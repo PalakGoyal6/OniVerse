@@ -84,7 +84,7 @@ export const ConsistencyPage: React.FC<ConsistencyPageProps> = ({ inspectors }) 
               />
               <Legend />
               <Bar dataKey="humanSpread" name="Human Inspector Spread (%)" fill="#dc2626" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="aiVariance" name="AGRI-GRADE AI Spread (%)" fill="#16a34a" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="aiVariance" name="OniVerse Spread (%)" fill="#16a34a" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

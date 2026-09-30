@@ -231,7 +231,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <div className="bg-purple-50/60 p-8 rounded-2xl border border-purple-200/80">
               <div className="inline-block px-3 py-1 rounded-full bg-purple-200 text-purple-950 text-xs font-bold mb-4">
-                AGRI-GRADE AI Solution
+                OniVerse AI Solution
               </div>
               <ul className="space-y-3.5 text-sm text-slate-700">
                 <li className="flex items-start gap-2.5">

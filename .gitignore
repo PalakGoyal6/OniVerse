@@ -54,3 +54,5 @@ Thumbs.db
 *.db
 *.sqlite
 *.zip
+test_images/
+test_basket_crop.jpg
