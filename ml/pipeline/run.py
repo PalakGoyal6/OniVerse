@@ -63,16 +63,18 @@ class OnionLotProcessor:
         """Runs marker detection, homography, segmentation and sizing on one photo."""
         quality = self.marker_detector.validate_camera_quality(image)
         H_px_to_mm, marker_corners, marker_meta = self.marker_detector.detect_and_compute_homography(image)
+        marker_found = H_px_to_mm is not None
 
-        if H_px_to_mm is None:
-            # Fallback when marker is missing or obstructed
-            return {
-                "view": view_name,
-                "camera_quality": quality,
-                "marker_detected": False,
-                "onions": [],
-                "error": "Marker not found",
-            }
+        if not marker_found:
+            # Smart fallback: approximate 0.35 mm/pixel scale for casual test photos without ArUco marker
+            h, w = image.shape[:2]
+            scale = 400.0 / max(w, h)  # assume field of view covers ~400mm tray
+            H_px_to_mm = np.array([
+                [scale, 0.0, 0.0],
+                [0.0, scale, 0.0],
+                [0.0, 0.0, 1.0],
+            ], dtype=np.float64)
+            marker_meta = {"dictionary": "FALLBACK_PIXEL_SCALE", "marker_found": False}
 
         segments = self.segmentor.infer(image)
         onions_raw = []
@@ -102,7 +104,7 @@ class OnionLotProcessor:
         return {
             "view": view_name,
             "camera_quality": quality,
-            "marker_detected": True,
+            "marker_detected": marker_found,
             "marker_meta": marker_meta,
             "onions": onions_raw,
         }
