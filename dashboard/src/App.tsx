@@ -10,6 +10,7 @@ import { AuditLogPage } from './pages/AuditLogPage';
 import { LandingPage } from './pages/LandingPage';
 import { PublicVerifyPage } from './pages/PublicVerifyPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AiTestingLabPage } from './pages/AiTestingLabPage';
 import { LanguageProvider } from './i18n';
 import {
   fetchOverview,
@@ -123,6 +124,8 @@ const DashboardContent: React.FC = () => {
               onSelectReport={() => setActiveTab('reports')}
             />
           )}
+
+          {activeTab === 'lab' && <AiTestingLabPage />}
 
           {activeTab === 'reports' && (
             <ReportsBrowserPage

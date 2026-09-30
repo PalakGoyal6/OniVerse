@@ -10,6 +10,7 @@ import {
   Settings,
   Search,
   Globe,
+  Zap,
 } from 'lucide-react';
 import { OnionLogo } from './OnionLogo';
 import { useLanguage } from '../i18n';
@@ -31,6 +32,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     { id: 'overview', label: t('navOverview'), icon: LayoutDashboard },
+    {
+      id: 'lab',
+      label: language === 'hi' ? 'एआई गुणवत्ता लैब' : language === 'mr' ? 'एआय गुणवत्ता लॅब' : 'AI Testing Lab',
+      icon: Zap,
+      badge: 'Live AI',
+    },
     { id: 'reports', label: t('navReports'), icon: FileCheck2 },
     {
       id: 'consistency',
