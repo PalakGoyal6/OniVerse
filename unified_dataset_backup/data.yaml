@@ -1,0 +1,10 @@
+path: /content/unified_dataset
+train: train/images
+val: valid/images
+test: test/images
+names:
+  0: healthy
+  1: mechanical_damage
+  2: rotten
+  3: sprouting
+  4: mould
